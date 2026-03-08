@@ -24,8 +24,6 @@ import io.github.gohoski.notpipe.util.ImageLoader;
  */
 public class CommentAdapter extends ArrayAdapter<Comment> {
     private Context context;
-    private Set<Integer> loadedPositions = new HashSet<Integer>();
-    private static final int INITIAL_LOAD_COUNT = 8; // Load first 8 comments
 
     public CommentAdapter(Context context, int resource, List<Comment> objects) {
         super(context, resource, objects);
@@ -36,8 +34,7 @@ public class CommentAdapter extends ArrayAdapter<Comment> {
     public View getView(int position, View convertView, ViewGroup parent) {
         ViewHolder holder;
         View row = convertView;
-        boolean isLazyLoading = parent instanceof AdapterLinearLayout;
-        
+
         if (row == null) {
             LayoutInflater inflater = ((Activity) context).getLayoutInflater();
             row = inflater.inflate(R.layout.comment_item, parent, false);
@@ -50,58 +47,33 @@ public class CommentAdapter extends ArrayAdapter<Comment> {
         } else {
             holder = (ViewHolder) row.getTag();
         }
-        
+
         Comment comment = getItem(position);
         holder.channelTitle.setText(comment.channel);
         holder.content.setText(comment.content);
         holder.date.setText(Utils.formatTimeAgo(context, comment.publishedAt));
-        
-        // Store references for lazy loading
-        holder.position = position;
+
+        // Prepare holder for lazy loading
         holder.comment = comment;
-        
-        // Always clear first to prevent showing recycled images
+        holder.imagesLoaded = false;
+
+        // Reset thumbnail to prevent recycled view artifacts
         holder.channelThumb.setImageBitmap(null);
-        
-        // For ListView: load immediately. For AdapterLinearLayout: only if marked visible
-        if (!isLazyLoading || loadedPositions.contains(position)) {
-            ImageLoader.loadImage(comment.channelThumbnail, holder.channelThumb);
-        }
-        
+
         return row;
     }
 
     /**
-     * Load images for a range of items.
-     * Call this when items become visible during scrolling.
+     * Called by VideoActivity when this row enters the screen.
      */
-    public void loadImagesForRange(int start, int end) {
-        boolean changed = false;
-        for (int i = start; i <= end && i < getCount(); i++) {
-            if (!loadedPositions.contains(i)) {
-                loadedPositions.add(i);
-                changed = true;
+    public void loadImagesForView(View row) {
+        if (row.getTag() instanceof ViewHolder) {
+            ViewHolder holder = (ViewHolder) row.getTag();
+            if (!holder.imagesLoaded && holder.comment != null) {
+                ImageLoader.loadImage(holder.comment.channelThumbnail, holder.channelThumb);
+                holder.imagesLoaded = true;
             }
         }
-        if (changed) {
-            notifyDataSetChanged();
-        }
-    }
-
-    /**
-     * Load initial set of images.
-     * Call this after setting the adapter.
-     */
-    public void loadInitialImages() {
-        loadImagesForRange(0, INITIAL_LOAD_COUNT - 1);
-    }
-
-    /**
-     * Clear all loaded images and reset.
-     */
-    public void reset() {
-        loadedPositions.clear();
-        notifyDataSetChanged();
     }
 
     private static class ViewHolder {
@@ -110,6 +82,6 @@ public class CommentAdapter extends ArrayAdapter<Comment> {
         TextView date;
         ImageView channelThumb;
         Comment comment;
-        int position;
+        boolean imagesLoaded; // Tracks if we already triggered the load for this specific view
     }
 }

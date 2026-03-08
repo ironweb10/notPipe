@@ -11,6 +11,8 @@
 
 ## 📥 Скачать
 * [GitHub Releases](https://github.com/gohoski/notPipe/releases)
+* [OldMarket](http://oldmarket.store/app.php?id=536)
+* [Market Reborn](http://market.lyano.ovh/details/?id=io.github.gohoski.notpipe)
 * Telegram (ссылка в начале README)
 
 ## Возможности

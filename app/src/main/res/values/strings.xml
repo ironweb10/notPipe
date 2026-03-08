@@ -85,4 +85,5 @@
     <string name="loading_">(loading)</string>
     <string name="conv_long">Conversion may take a long time. Please wait.</string>
     <string name="cache">cache</string>
+    <string name="sd_card">An SD card is required to disable stream playback</string>
 </resources>

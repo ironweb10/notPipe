@@ -165,11 +165,28 @@ public class VideoActivity extends Activity {
                 }
 
                 BaseAdapter adapter = new BaseAdapter() {
-                    @Override public int getCount() { return dialogItems.size(); }
-                    @Override public Object getItem(int position) { return dialogItems.get(position); }
-                    @Override public long getItemId(int position) { return position; }
-                    @Override public boolean isEnabled(int position) { return !(dialogItems.get(position) instanceof String); }
-                    @Override public View getView(int position, View convertView, ViewGroup parent) {
+                    @Override
+                    public int getCount() {
+                        return dialogItems.size();
+                    }
+
+                    @Override
+                    public Object getItem(int position) {
+                        return dialogItems.get(position);
+                    }
+
+                    @Override
+                    public long getItemId(int position) {
+                        return position;
+                    }
+
+                    @Override
+                    public boolean isEnabled(int position) {
+                        return !(dialogItems.get(position) instanceof String);
+                    }
+
+                    @Override
+                    public View getView(int position, View convertView, ViewGroup parent) {
                         Object item = dialogItems.get(position);
                         TextView textView = new TextView(context);
                         int padding = (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, 12, getResources().getDisplayMetrics());
@@ -185,7 +202,7 @@ public class VideoActivity extends Activity {
                             textView.setText(info.host);
                             textView.setPadding(padding * 2, padding, padding, padding);
                             textView.setTextSize(16);
-                            if (NotPipe.SDK < 11) textView.setTextColor(Color.WHITE);
+                            if (NotPipe.SDK < 11) textView.setTextColor(Color.BLACK);
                         }
                         return textView;
                     }
@@ -259,9 +276,17 @@ public class VideoActivity extends Activity {
             public void onTabChanged(String tabId) {
                 if (tabId.equals("related")) loadRelatedVideos();
                 else loadComments();
+                // Check immediately on tab switch
+                scrollView.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        checkVisibleItems();
+                    }
+                });
             }
         });
 
+        // Start the legacy polling loop!
         scrollHandler.post(scrollCheckRunnable);
 
         if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE) {
@@ -269,6 +294,66 @@ public class VideoActivity extends Activity {
         }
 
         new LoadVideoTask().execute(videoId);
+    }
+
+    private int lastScrollY = -1;
+    private android.os.Handler scrollHandler = new android.os.Handler();
+    private Runnable scrollCheckRunnable = new Runnable() {
+        @Override
+        public void run() {
+            if (scrollView != null) {
+                int currentScrollY = scrollView.getScrollY();
+                if (currentScrollY != lastScrollY || lastScrollY == -1) {
+                    lastScrollY = currentScrollY;
+                    checkVisibleItems();
+                }
+            }
+            scrollHandler.postDelayed(this, 100);
+        }
+    };
+
+    /**
+     * Identifies exactly which views are on the screen and loads their images.
+     */
+    private void checkVisibleItems() {
+        if (scrollView == null || scrollView.getHeight() == 0) return;
+        TabHost tabHost = (TabHost) findViewById(android.R.id.tabhost);
+        if (tabHost == null) return;
+
+        String currentTab = tabHost.getCurrentTabTag();
+        AdapterLinearLayout activeList = null;
+
+        if ("related".equals(currentTab) && relatedLoaded) {
+            activeList = relatedList;
+        } else if ("comments".equals(currentTab) && commentsLoaded) {
+            activeList = commentsList;
+        }
+
+        if (activeList == null || activeList.getChildCount() == 0) return;
+
+        int[] listLoc = new int[2];
+        int[] scrollLoc = new int[2];
+        activeList.getLocationInWindow(listLoc);
+        scrollView.getLocationInWindow(scrollLoc);
+
+        int visibleTop = scrollLoc[1];
+        int visibleBottom = visibleTop + scrollView.getHeight();
+
+        for (int i = 0; i < activeList.getChildCount(); i++) {
+            View child = activeList.getChildAt(i);
+            if (child == null) continue;
+
+            int childTop = listLoc[1] + child.getTop();
+            int childBottom = listLoc[1] + child.getBottom();
+
+            if (childBottom > visibleTop && childTop < visibleBottom) {
+                if ("related".equals(currentTab)) {
+                    relatedAdapter.loadImagesForView(child);
+                } else {
+                    commentsAdapter.loadImagesForView(child);
+                }
+            }
+        }
     }
 
     private void stopAndResetVideo() {
@@ -333,10 +418,14 @@ public class VideoActivity extends Activity {
 
                 if (isOpencore) {
                     videoView.postDelayed(new Runnable() {
-                        @Override public void run() {
+                        @Override
+                        public void run() {
                             ((AspectRatioVideoView) videoView).forceLayoutUpdate();
                             videoView.postDelayed(new Runnable() {
-                                @Override public void run() { mp.start(); }
+                                @Override
+                                public void run() {
+                                    mp.start();
+                                }
                             }, 200);
                         }
                     }, 100);
@@ -366,7 +455,7 @@ public class VideoActivity extends Activity {
                     isUsingMetadataUrl = false;
                     Toast.makeText(context, "Stream failed. Trying another instance...", Toast.LENGTH_SHORT).show();
                     findViewById(R.id.video_loading).setVisibility(View.VISIBLE);
-                    new ResolveStreamTask(null).execute(videoId); // Auto-fallback
+                    new ResolveStreamTask(null).execute(videoId);
                 } else {
                     if (videoStream != null) Manager.getInstance().removeDeadInstance(videoStream);
                     restoreVideoUI();
@@ -448,7 +537,8 @@ public class VideoActivity extends Activity {
                 if (actionBar != null) {
                     actionBar.getClass().getMethod(show ? "show" : "hide").invoke(actionBar);
                 }
-            } catch (Exception ignored) {}
+            } catch (Exception ignored) {
+            }
         }
         try {
             View titleView = getWindow().findViewById(android.R.id.title);
@@ -458,7 +548,8 @@ public class VideoActivity extends Activity {
                     ((View) titleView.getParent()).setVisibility(show ? View.VISIBLE : View.GONE);
                 }
             }
-        } catch (Exception ignored) {}
+        } catch (Exception ignored) {
+        }
     }
 
     private void enterFullscreenMode() {
@@ -500,24 +591,6 @@ public class VideoActivity extends Activity {
         ((AspectRatioVideoView) videoView).setFullscreen(false);
     }
 
-    private int lastScrollY = -1;
-    private android.os.Handler scrollHandler = new android.os.Handler();
-    private Runnable scrollCheckRunnable = new Runnable() {
-        @Override
-        public void run() {
-            int currentScrollY = scrollView.getScrollY();
-            if (currentScrollY != lastScrollY) {
-                lastScrollY = currentScrollY;
-                if (!relatedLoaded && !commentsLoaded) return;
-                TabHost tabHost = (TabHost) findViewById(android.R.id.tabhost);
-                String currentTab = tabHost.getCurrentTabTag();
-                if ("related".equals(currentTab) && relatedLoaded) updateAdapterVisibleRange(relatedList, relatedAdapter);
-                else if ("comments".equals(currentTab) && commentsLoaded) updateAdapterVisibleRange(commentsList, commentsAdapter);
-            }
-            scrollHandler.postDelayed(this, 100);
-        }
-    };
-
     private android.os.Handler videoTimeoutHandler = new android.os.Handler();
     private Runnable videoTimeoutRunnable = null;
 
@@ -556,40 +629,12 @@ public class VideoActivity extends Activity {
         }
     }
 
-    private void updateAdapterVisibleRange(AdapterLinearLayout list, Object adapter) {
-        int firstVisible = -1, lastVisible = -1;
-        int[] listLoc = new int[2], scrollLoc = new int[2];
-        list.getLocationInWindow(listLoc);
-        scrollView.getLocationInWindow(scrollLoc);
-
-        int visibleTop = scrollLoc[1];
-        int visibleBottom = visibleTop + scrollView.getHeight();
-
-        for (int i = 0; i < list.getChildCount(); i++) {
-            View child = list.getChildAt(i);
-            if (child == null) continue;
-            int childTop = listLoc[1] + child.getTop();
-            int childBottom = listLoc[1] + child.getBottom();
-
-            if (childBottom > visibleTop && childTop < visibleBottom) {
-                if (firstVisible == -1) firstVisible = i;
-                lastVisible = i;
-            }
-        }
-
-        if (firstVisible != -1) {
-            if (adapter instanceof VideoAdapter) ((VideoAdapter) adapter).loadImagesForRange(firstVisible, lastVisible);
-            else ((CommentAdapter) adapter).loadImagesForRange(firstVisible, lastVisible);
-        }
-    }
-
     private void loadRelatedVideos() {
         if (relatedLoaded) return;
         if (video != null && video.related != null && !video.related.isEmpty()) {
             relatedVideos.clear();
             relatedVideos.addAll(video.related);
             relatedAdapter.notifyDataSetChanged();
-            relatedAdapter.loadInitialImages();
             relatedLoading.setVisibility(View.GONE);
             relatedLoaded = true;
         } else {
@@ -603,7 +648,6 @@ public class VideoActivity extends Activity {
             comments.clear();
             comments.addAll(video.comments);
             commentsAdapter.notifyDataSetChanged();
-            commentsAdapter.loadInitialImages();
             commentsLoading.setVisibility(View.GONE);
             commentsLoaded = true;
         } else {
@@ -614,7 +658,11 @@ public class VideoActivity extends Activity {
     private class LoadVideoTask extends AsyncTask<String, Void, Video> {
         @Override
         protected Video doInBackground(String... params) {
-            try { return api.getVideo(params[0]); } catch (Exception e) { return null; }
+            try {
+                return api.getVideo(params[0]);
+            } catch (Exception e) {
+                return null;
+            }
         }
 
         @Override
@@ -631,7 +679,8 @@ public class VideoActivity extends Activity {
             ((TextView) findViewById(R.id.title)).setText(video.title);
             ((TextView) findViewById(R.id.channel_title)).setText(video.channel);
             ((TextView) findViewById(R.id.subscribers)).setText(Utils.formatNumber(context, video.subscribers));
-            if (video.likes > 0) ((Button) findViewById(R.id.like)).setText(Utils.formatNumber(context, video.likes));
+            if (video.likes > 0)
+                ((Button) findViewById(R.id.like)).setText(Utils.formatNumber(context, video.likes));
             ((TextView) findViewById(R.id.views)).setText(getString(R.string.views, Utils.formatNumber(context, video.views)) +
                     "   " + Utils.formatTimeAgo(context, video.publishedAt));
 
@@ -641,7 +690,8 @@ public class VideoActivity extends Activity {
                 if (config.isConvertVideos()) {
                     List<VideoStream> ytApiLegacy = new ArrayList<VideoStream>();
                     for (int i = 0; i < targetList.size(); i++) {
-                        if (targetList.get(i) instanceof YtApiLegacy) ytApiLegacy.add(targetList.get(i));
+                        if (targetList.get(i) instanceof YtApiLegacy)
+                            ytApiLegacy.add(targetList.get(i));
                     }
                     if (!ytApiLegacy.isEmpty()) targetList = ytApiLegacy;
                 }
@@ -682,9 +732,6 @@ public class VideoActivity extends Activity {
         }
     }
 
-    /**
-     * Unified Task that handles Custom Instances, Codec Conversions, and standard URL Fetching.
-     */
     private class ResolveStreamTask extends AsyncTask<String, Void, String> {
         private VideoStream targetInstance;
         private VideoStream[] successInstance = new VideoStream[1];
@@ -701,18 +748,15 @@ public class VideoActivity extends Activity {
                 File cachedVideo = getCachedVideoFile(id);
                 if (cachedVideo.exists()) return cachedVideo.getAbsolutePath();
                 String quality = config.getPreferredQuality();
-                // Custom User-Selected Instance
                 if (targetInstance != null) {
                     if (config.isConvertVideos() && targetInstance instanceof YtApiLegacy) {
                         return ((YtApiLegacy) targetInstance).getConvUrl(id, config.getConvertCodec());
                     }
                     return targetInstance.getVideoUrl(id, quality);
                 }
-                // Auto-Resolve with Codec conversion
                 if (config.isConvertVideos()) {
                     return Manager.getInstance().getVideoUrl(id, quality, config.getConvertCodec(), videoStream, successInstance);
                 }
-                // Auto-Resolve standard URL
                 return Manager.getInstance().getVideoUrl(id, quality, videoStream, successInstance);
             } catch (Exception e) {
                 errorMessage = e.getMessage();
@@ -726,7 +770,6 @@ public class VideoActivity extends Activity {
 
             if (resultUrl != null) {
                 videoUrl = resultUrl;
-                // Update specific stream UI based on success origin
                 if (targetInstance != null) {
                     videoStream = targetInstance;
                 } else if (successInstance[0] != null) {
@@ -775,7 +818,11 @@ public class VideoActivity extends Activity {
                 findViewById(R.id.video_loading).setVisibility(View.GONE);
                 Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(targetUrl));
                 intent.setDataAndType(Uri.parse(targetUrl), "video/mp4");
-                try { startActivity(intent); } catch (Exception e) { e.printStackTrace(); }
+                try {
+                    startActivity(intent);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             } else {
                 new DownloadVideoTask().execute(targetUrl);
             }
@@ -813,6 +860,7 @@ public class VideoActivity extends Activity {
                 if (!videoFile.exists()) {
                     HttpClient.downloadToFile(downloadUrl, videoFile.getAbsolutePath(), new HttpClient.DownloadProgressListener() {
                         private long lastUpdateTime = 0;
+
                         @Override
                         public void onProgress(final long bytesDownloaded, final long totalBytes) {
                             if (totalBytes > 0) {
@@ -826,7 +874,9 @@ public class VideoActivity extends Activity {
                     });
                 }
                 return videoFile;
-            } catch (Exception e) { return null; }
+            } catch (Exception e) {
+                return null;
+            }
         }
 
         @Override
@@ -842,7 +892,11 @@ public class VideoActivity extends Activity {
                     findViewById(R.id.video_loading).setVisibility(View.GONE);
                     Intent intent = new Intent(Intent.ACTION_VIEW);
                     intent.setDataAndType(Uri.fromFile(videoFile), "video/mp4");
-                    try { startActivity(intent); } catch (Exception e) { e.printStackTrace(); }
+                    try {
+                        startActivity(intent);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
                 } else {
                     stopAndResetVideo();
                     applyOpenCoreLayoutFix();
@@ -854,9 +908,19 @@ public class VideoActivity extends Activity {
                     videoView.requestFocus(0);
                 }
             } else {
+                if (isUsingMetadataUrl) {
+                    Manager.getInstance().removeDeadInstance(api);
+                    isUsingMetadataUrl = false;
+                } else if (videoStream != null) {
+                    Manager.getInstance().removeDeadInstance(videoStream);
+                }
                 stopAndResetVideo();
-                restoreVideoUI();
-                Toast.makeText(context, "Failed to download video", Toast.LENGTH_SHORT).show();
+
+                findViewById(R.id.video_loading).setVisibility(View.VISIBLE);
+                thumbnail.setVisibility(View.INVISIBLE);
+                play.setVisibility(View.GONE);
+                Toast.makeText(context, "Download failed. Trying another instance...", Toast.LENGTH_SHORT).show();
+                new ResolveStreamTask(null).execute(videoId);
             }
         }
     }
@@ -881,10 +945,23 @@ public class VideoActivity extends Activity {
 
             try {
                 DvaUha.convert(targetUrl, config.getConvertCodec(), new DvaUha.Callback() {
-                    @Override public void onMessage(String msg) { publishProgress(msg); }
-                    @Override public void onSuccess(String url) { resultUrl[0] = url; }
-                    @Override public void onError(Exception e) { convertException = e; }
-                    @Override public String onCaptchaRequired(final String imageUrl) {
+                    @Override
+                    public void onMessage(String msg) {
+                        publishProgress(msg);
+                    }
+
+                    @Override
+                    public void onSuccess(String url) {
+                        resultUrl[0] = url;
+                    }
+
+                    @Override
+                    public void onError(Exception e) {
+                        convertException = e;
+                    }
+
+                    @Override
+                    public String onCaptchaRequired(final String imageUrl) {
                         final String[] result = new String[]{""};
                         final Object lock = new Object();
                         runOnUiThread(new Runnable() {
@@ -910,32 +987,45 @@ public class VideoActivity extends Activity {
                                 builder.setView(layout);
                                 builder.setCancelable(false);
                                 builder.setPositiveButton(android.R.string.ok, new DialogInterface.OnClickListener() {
-                                    @Override public void onClick(DialogInterface dialog, int which) {
+                                    @Override
+                                    public void onClick(DialogInterface dialog, int which) {
                                         result[0] = input.getText().toString();
-                                        synchronized (lock) { lock.notify(); }
+                                        synchronized (lock) {
+                                            lock.notify();
+                                        }
                                     }
                                 });
                                 builder.setNegativeButton(android.R.string.cancel, new DialogInterface.OnClickListener() {
-                                    @Override public void onClick(DialogInterface dialog, int which) {
-                                        synchronized (lock) { lock.notify(); }
+                                    @Override
+                                    public void onClick(DialogInterface dialog, int which) {
+                                        synchronized (lock) {
+                                            lock.notify();
+                                        }
                                     }
                                 });
                                 builder.show();
                                 ImageLoader.loadImage(imageUrl, imageView, false);
                             }
                         });
-                        synchronized (lock) { try { lock.wait(); } catch (InterruptedException e) {} }
+                        synchronized (lock) {
+                            try {
+                                lock.wait();
+                            } catch (InterruptedException ignored) {}
+                        }
                         return result[0];
                     }
                 });
-            } catch (Exception e) { convertException = e; }
+            } catch (Exception e) {
+                convertException = e;
+            }
             return resultUrl[0];
         }
 
         @Override
         protected void onProgressUpdate(String... values) {
             TextView progressView = (TextView) findViewById(R.id.video_progress);
-            if (progressView != null) progressView.setText(getString(R.string.dvauha_msg, values[0]));
+            if (progressView != null)
+                progressView.setText(getString(R.string.dvauha_msg, values[0]));
         }
 
         @Override
@@ -955,15 +1045,21 @@ public class VideoActivity extends Activity {
     }
 
     private class LoadCommentsTask extends AsyncTask<String, Void, List<Comment>> {
-        @Override protected List<Comment> doInBackground(String... params) {
-            try { return api.getComments(params[0]); } catch (Exception e) { return null; }
+        @Override
+        protected List<Comment> doInBackground(String... params) {
+            try {
+                return api.getComments(params[0]);
+            } catch (Exception e) {
+                return null;
+            }
         }
-        @Override protected void onPostExecute(List<Comment> result) {
+
+        @Override
+        protected void onPostExecute(List<Comment> result) {
             if (result != null) {
                 comments.clear();
                 comments.addAll(result);
                 commentsAdapter.notifyDataSetChanged();
-                commentsAdapter.loadInitialImages();
             }
             commentsLoading.setVisibility(View.GONE);
             commentsLoaded = true;
@@ -971,15 +1067,21 @@ public class VideoActivity extends Activity {
     }
 
     private class LoadRelatedTask extends AsyncTask<String, Void, List<VideoInfo>> {
-        @Override protected List<VideoInfo> doInBackground(String... params) {
-            try { return api.getRelated(params[0]); } catch (Exception e) { return null; }
+        @Override
+        protected List<VideoInfo> doInBackground(String... params) {
+            try {
+                return api.getRelated(params[0]);
+            } catch (Exception e) {
+                return null;
+            }
         }
-        @Override protected void onPostExecute(List<VideoInfo> result) {
+
+        @Override
+        protected void onPostExecute(List<VideoInfo> result) {
             if (result != null) {
                 relatedVideos.clear();
                 relatedVideos.addAll(result);
                 relatedAdapter.notifyDataSetChanged();
-                relatedAdapter.loadInitialImages();
             }
             relatedLoading.setVisibility(View.GONE);
             relatedLoaded = true;

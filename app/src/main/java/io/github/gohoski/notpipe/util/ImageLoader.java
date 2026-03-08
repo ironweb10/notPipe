@@ -80,6 +80,7 @@ public class ImageLoader {
 
         @Override
         public void run() {
+//            Log.d("ImageLoader", url);
             final int MAX_RETRIES = 2;
             Bitmap bmp = null;
 

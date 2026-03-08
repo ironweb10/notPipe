@@ -1,7 +1,7 @@
 # notPipe
 **English** / [русский](README.ru.md) 
 
-A working YouTube client for **Android 1.5+** utilizing [YtAPILegacy](http://yt.modyleprojects.ru), [Invidious](https://invidious.io) and [yt2009](https://github.com/ftde0/yt2009) APIs. Made with ❤ and longevity in mind.
+A working YouTube client for **Android 1.5+** utilizing [YtAPILegacy](http://yt.modyleprojects.ru), [Invidious](https://invidious.io) and [yt2009](https://github.com/ftde0/yt2009) APIs. Made with ❤ and longevity in mind. Instead of using a single instance, the app uses multiple instances at the same time for reliability.
 * **Telegram channel with updates**: [@AppDataApps](https://t.me/AppDataApps)
 * **[Retro Android Group](https://t.me/retroandroidgroup)** on Telegram
 
@@ -11,6 +11,8 @@ A working YouTube client for **Android 1.5+** utilizing [YtAPILegacy](http://yt.
 
 ## 📥 Download
 * [GitHub Releases](https://github.com/gohoski/notPipe/releases)
+* [OldMarket](http://oldmarket.store/app.php?id=536)
+* [Market Reborn](http://market.lyano.ovh/details/?id=io.github.gohoski.notpipe)
 * Telegram (link at the top of the README)
 
 ## Features

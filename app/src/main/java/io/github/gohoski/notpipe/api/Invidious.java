@@ -63,11 +63,12 @@ public class Invidious implements Metadata, VideoStream {
         List<VideoInfo> videos = new ArrayList<VideoInfo>();
         for (int i = 0; i < json.size(); i++) {
             JSONObject j = json.getObject(i);
-            videos.add(new VideoInfo(j.getString("videoId"), j.getString("title"),
-                    Utils.parseUrl(baseUrl,j.getArray("videoThumbnails").getObject(4).getString("url")), j.getString("author"),
-                    j.getArray("authorThumbnails").getObject(2).getString("url")
-                            .replace("https://yt3.ggpht.com", "http://yt4.ggpht.com"),
-                    Utils.formatDuration(j.getInt("lengthSeconds")), j.getInt("viewCount")));
+            if ("video".equals(j.getString("type"))) // sometimes the API returns a channel for some unordinary reason…
+                videos.add(new VideoInfo(j.getString("videoId"), j.getString("title"),
+                        Utils.parseUrl(baseUrl,j.getArray("videoThumbnails").getObject(4).getString("url")), j.getString("author"),
+                        j.getArray("authorThumbnails").getObject(2).getString("url")
+                                .replace("https://yt3.ggpht.com", "http://yt4.ggpht.com"),
+                        Utils.formatDuration(j.getInt("lengthSeconds")), j.getInt("viewCount")));
         } return videos;
     }
 

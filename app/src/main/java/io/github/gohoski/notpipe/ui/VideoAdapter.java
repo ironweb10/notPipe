@@ -10,9 +10,7 @@ import android.widget.ArrayAdapter;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import io.github.gohoski.notpipe.R;
 import io.github.gohoski.notpipe.VideoActivity;
@@ -25,8 +23,6 @@ import io.github.gohoski.notpipe.util.ImageLoader;
  */
 public class VideoAdapter extends ArrayAdapter<VideoInfo> {
     private Context context;
-    private Set<Integer> loadedPositions = new HashSet<Integer>();
-    private static final int INITIAL_LOAD_COUNT = 0;
 
     public VideoAdapter(Context context, int resource, List<VideoInfo> objects) {
         super(context, resource, objects);
@@ -37,8 +33,11 @@ public class VideoAdapter extends ArrayAdapter<VideoInfo> {
     public View getView(int position, View convertView, ViewGroup parent) {
         ViewHolder holder;
         View row = convertView;
+
+        // Check if this adapter is being used inside our custom layout (VideoActivity)
+        // or a standard native ListView (MainActivity).
         boolean isLazyLoading = parent instanceof AdapterLinearLayout;
-        
+
         if (row == null) {
             LayoutInflater inflater = ((Activity) context).getLayoutInflater();
             row = inflater.inflate(R.layout.video_item, parent, false);
@@ -52,25 +51,31 @@ public class VideoAdapter extends ArrayAdapter<VideoInfo> {
         } else {
             holder = (ViewHolder) row.getTag();
         }
-        
+
         final VideoInfo video = getItem(position);
         holder.videoTitle.setText(video.title);
         holder.channelTitle.setText(video.channel);
-        if (video.duration != null) {
+
+        if (video.duration != null && video.duration.length() > 0) {
             holder.duration.setText(video.duration);
             holder.duration.setVisibility(View.VISIBLE);
+        } else {
+            holder.duration.setVisibility(View.GONE);
         }
 
-        holder.position = position;
         holder.video = video;
+        holder.imagesLoaded = false;
         holder.videoThumb.setImageBitmap(null);
         holder.channelThumb.setImageBitmap(null);
 
-        if (!isLazyLoading || loadedPositions.contains(position)) {
+        // If we are in MainActivity (standard ListView), load images immediately!
+        // Standard ListViews recycle naturally, so OOM is not an issue here.
+        if (!isLazyLoading) {
             ImageLoader.loadImage(video.thumbnail, holder.videoThumb);
             ImageLoader.loadImage(video.channelThumbnail, holder.channelThumb);
+            holder.imagesLoaded = true;
         }
-        
+
         row.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -79,41 +84,22 @@ public class VideoAdapter extends ArrayAdapter<VideoInfo> {
                 context.startActivity(intent);
             }
         });
-        
+
         return row;
     }
 
     /**
-     * Load images for a range of items.
-     * Call this when items become visible during scrolling.
+     * Called by VideoActivity's ScrollView listener when this row becomes visible.
      */
-    public void loadImagesForRange(int start, int end) {
-        boolean changed = false;
-        for (int i = start; i <= end && i < getCount(); i++) {
-            if (!loadedPositions.contains(i)) {
-                loadedPositions.add(i);
-                changed = true;
+    public void loadImagesForView(View row) {
+        if (row.getTag() instanceof ViewHolder) {
+            ViewHolder holder = (ViewHolder) row.getTag();
+            if (!holder.imagesLoaded && holder.video != null) {
+                ImageLoader.loadImage(holder.video.thumbnail, holder.videoThumb);
+                ImageLoader.loadImage(holder.video.channelThumbnail, holder.channelThumb);
+                holder.imagesLoaded = true;
             }
         }
-        if (changed) {
-            notifyDataSetChanged();
-        }
-    }
-
-    /**
-     * Load initial set of images.
-     * Call this after setting the adapter.
-     */
-    public void loadInitialImages() {
-        loadImagesForRange(0, INITIAL_LOAD_COUNT - 1);
-    }
-
-    /**
-     * Clear all loaded images and reset.
-     */
-    public void reset() {
-        loadedPositions.clear();
-        notifyDataSetChanged();
     }
 
     private static class ViewHolder {
@@ -123,6 +109,6 @@ public class VideoAdapter extends ArrayAdapter<VideoInfo> {
         ImageView videoThumb;
         ImageView channelThumb;
         VideoInfo video;
-        int position;
+        boolean imagesLoaded;
     }
 }

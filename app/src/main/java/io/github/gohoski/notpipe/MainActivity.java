@@ -25,7 +25,6 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.io.IOException;
 import java.util.Calendar;
 import java.util.List;
 
@@ -41,6 +40,9 @@ import io.github.gohoski.notpipe.util.ImageLoader;
 import io.github.gohoski.notpipe.util.InstancesUpdater;
 
 public class MainActivity extends Activity implements InstancesUpdater.OnInstancesUpdatedListener {
+    private static final String STATE_SEARCH_QUERY = "search_query";
+    private static final String STATE_IS_SEARCH_MODE = "is_search_mode";
+
     private VideoAdapter adapter;
     private List<VideoInfo> videos;
     private AutoCompleteTextView searchQuery;
@@ -50,6 +52,25 @@ public class MainActivity extends Activity implements InstancesUpdater.OnInstanc
     private Metadata metadata;
     private AutoCompleteAdapter autoCompleteAdapter;
     private Config config = ConfigManager.getInstance().getConfig();
+    private boolean isSearchMode = false;
+    private boolean isDestroyedFlag = false;
+
+    private static class RetainedState {
+        List<VideoInfo> videos;
+        boolean isSearchMode;
+        String query;
+    }
+
+    @Override
+    public Object onRetainNonConfigurationInstance() {
+        RetainedState state = new RetainedState();
+        state.videos = this.videos;
+        state.isSearchMode = this.isSearchMode;
+        if (searchQuery != null) {
+            state.query = searchQuery.getText().toString();
+        }
+        return state;
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -66,7 +87,17 @@ public class MainActivity extends Activity implements InstancesUpdater.OnInstanc
         try {
             trending = Manager.getInstance().getTrending();
         } catch(IllegalStateException ignored) {}
-        metadata = Manager.getInstance().getMetadata();
+        try {
+            metadata = Manager.getInstance().getMetadata();
+        } catch(IllegalStateException ignored) {}
+
+        RetainedState retained = (RetainedState) getLastNonConfigurationInstance();
+        if (retained != null) {
+            videos = retained.videos;
+            isSearchMode = retained.isSearchMode;
+        } else if (savedInstanceState != null) {
+            isSearchMode = savedInstanceState.getBoolean(STATE_IS_SEARCH_MODE, false);
+        }
 
         listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
@@ -83,18 +114,31 @@ public class MainActivity extends Activity implements InstancesUpdater.OnInstanc
         autoCompleteAdapter.setOnSuggestionsLoadedListener(new AutoCompleteAdapter.OnSuggestionsLoadedListener() {
             @Override
             public void onSuggestionsLoaded() {
-                searchQuery.showDropDown();
+                if (!isDestroyedFlag && searchQuery != null) {
+                    searchQuery.showDropDown();
+                }
             }
         });
         searchQuery.setAdapter(autoCompleteAdapter);
         searchQuery.setThreshold(3);
+
+        if (retained != null && retained.query != null) {
+            searchQuery.setText(retained.query);
+        } else if (savedInstanceState != null) {
+            String query = savedInstanceState.getString(STATE_SEARCH_QUERY);
+            if (query != null) searchQuery.setText(query);
+        }
+        searchQuery.dismissDropDown();
+
         searchQuery.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             @Override public void afterTextChanged(Editable s) {}
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
-                autoCompleteAdapter.setSearchActive(false);
-                autoCompleteAdapter.requestSuggestions(s.toString());
+                if (searchQuery.hasFocus()) {
+                    autoCompleteAdapter.setSearchActive(false);
+                    autoCompleteAdapter.requestSuggestions(s.toString());
+                }
             }
         });
         searchQuery.setOnItemClickListener(new AdapterView.OnItemClickListener() {
@@ -114,6 +158,7 @@ public class MainActivity extends Activity implements InstancesUpdater.OnInstanc
                 if (query.length() != 0) {
                     searchQuery.dismissDropDown();
                     autoCompleteAdapter.setSearchActive(true);
+                    isSearchMode = true;
                     noTrending.setVisibility(View.GONE);
                     loading.setVisibility(View.VISIBLE);
                     hideKeyboard();
@@ -122,33 +167,57 @@ public class MainActivity extends Activity implements InstancesUpdater.OnInstanc
             }
         });
 
-        boolean isUpdatingInstances = false;
-        if (config.isUpdateInstancesFromUrl()) {
-            Calendar now = Calendar.getInstance();
-            Calendar lastUpdate = Calendar.getInstance();
-            now.setTimeInMillis(System.currentTimeMillis());
-            lastUpdate.setTimeInMillis(config.getLastUpdate());
-            now.set(Calendar.HOUR_OF_DAY, 0);
-            now.set(Calendar.MINUTE, 0);
-            now.set(Calendar.SECOND, 0);
-            now.set(Calendar.MILLISECOND, 0);
-            lastUpdate.set(Calendar.HOUR_OF_DAY, 0);
-            lastUpdate.set(Calendar.MINUTE, 0);
-            lastUpdate.set(Calendar.SECOND, 0);
-            lastUpdate.set(Calendar.MILLISECOND, 0);
-            if (Math.round((double) ((now.getTimeInMillis() - lastUpdate.getTimeInMillis()) / 24 * 60 * 60 * 1000)) >= config.getUpdateFrequency()) {
-                isUpdatingInstances = true;
-                new InstancesUpdater(this, this).updateInstances();
+        if (videos == null) {
+            boolean isUpdatingInstances = false;
+            if (config.isUpdateInstancesFromUrl()) {
+                Calendar now = Calendar.getInstance();
+                Calendar lastUpdate = Calendar.getInstance();
+                now.setTimeInMillis(System.currentTimeMillis());
+                lastUpdate.setTimeInMillis(config.getLastUpdate());
+                now.set(Calendar.HOUR_OF_DAY, 0);
+                now.set(Calendar.MINUTE, 0);
+                now.set(Calendar.SECOND, 0);
+                now.set(Calendar.MILLISECOND, 0);
+                lastUpdate.set(Calendar.HOUR_OF_DAY, 0);
+                lastUpdate.set(Calendar.MINUTE, 0);
+                lastUpdate.set(Calendar.SECOND, 0);
+                lastUpdate.set(Calendar.MILLISECOND, 0);
+                if (Math.round((double) ((now.getTimeInMillis() - lastUpdate.getTimeInMillis()) / (24L * 60 * 60 * 1000))) >= config.getUpdateFrequency()) {
+                    isUpdatingInstances = true;
+                    new InstancesUpdater(this, this).updateInstances();
+                }
             }
-        }
 
-        if (!isUpdatingInstances)
-            new TrendingTask().execute();
+            if (!isUpdatingInstances) {
+                if (isSearchMode && searchQuery.getText().toString().trim().length() > 0) {
+                    loading.setVisibility(View.VISIBLE);
+                    new SearchTask().execute(searchQuery.getText().toString().trim());
+                } else {
+                    isSearchMode = false;
+                    new TrendingTask().execute();
+                }
+            }
+        } else {
+            loading.setVisibility(View.GONE);
+            noTrending.setVisibility(View.GONE);
+            adapter = new VideoAdapter(this, R.layout.video_item, videos);
+            listView.setAdapter(adapter);
+        }
     }
 
     @Override
     public void onInstancesUpdated() {
-        new TrendingTask().execute();
+        if (isDestroyedFlag) return;
+        if (videos == null) {
+            if (isSearchMode && searchQuery.getText().toString().trim().length() > 0) {
+                findViewById(R.id.no_trending).setVisibility(View.GONE);
+                findViewById(R.id.loading).setVisibility(View.VISIBLE);
+                new SearchTask().execute(searchQuery.getText().toString().trim());
+            } else {
+                isSearchMode = false;
+                new TrendingTask().execute();
+            }
+        }
     }
 
     private void hideKeyboard() {
@@ -167,6 +236,26 @@ public class MainActivity extends Activity implements InstancesUpdater.OnInstanc
     }
 
     @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        if (searchQuery != null) {
+            outState.putString(STATE_SEARCH_QUERY, searchQuery.getText().toString());
+        }
+        outState.putBoolean(STATE_IS_SEARCH_MODE, isSearchMode);
+    }
+
+    @Override
+    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        // Skip calling super when the adapter isn't attached yet to prevent
+        // ListView crashes, but safely restore list scroll position if it is.
+        if (adapter != null) {
+            try {
+                super.onRestoreInstanceState(savedInstanceState);
+            } catch (Exception ignored) {}
+        }
+    }
+
+    @Override
     public void onLowMemory() {
         super.onLowMemory();
         ImageLoader.clearCache();
@@ -175,7 +264,11 @@ public class MainActivity extends Activity implements InstancesUpdater.OnInstanc
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        ImageLoader.clearCache();
+        isDestroyedFlag = true;
+        // Only clear the cache if the activity is dying completely, NOT on rotation
+        if (isFinishing()) {
+            ImageLoader.clearCache();
+        }
     }
 
     @Override
@@ -251,8 +344,12 @@ public class MainActivity extends Activity implements InstancesUpdater.OnInstanc
         protected SearchResult doInBackground(String... params) {
             SearchResult result = new SearchResult();
             try {
-                result.videos = metadata.search(params[0]);
-            } catch (IOException e) {
+                if (metadata != null) {
+                    result.videos = metadata.search(params[0]);
+                } else {
+                    result.error = new Exception("Metadata client not initialized.");
+                }
+            } catch (Exception e) {
                 result.error = e;
             }
             return result;
@@ -260,13 +357,17 @@ public class MainActivity extends Activity implements InstancesUpdater.OnInstanc
 
         @Override
         protected void onPostExecute(SearchResult result) {
-            findViewById(R.id.loading).setVisibility(View.GONE);
+            if (isDestroyedFlag) return; // Discard safely if activity was killed during rotation
+
+            View loadingView = findViewById(R.id.loading);
+            if (loadingView != null) loadingView.setVisibility(View.GONE);
+
             if (result.error != null) {
                 Toast.makeText(MainActivity.this, "Search failed: " + result.error.getMessage(), Toast.LENGTH_LONG).show();
             } else if (result.videos != null) {
                 videos = result.videos;
                 adapter = new VideoAdapter(MainActivity.this, R.layout.video_item, videos);
-                listView.setAdapter(adapter);
+                if (listView != null) listView.setAdapter(adapter);
             }
         }
     }
@@ -286,22 +387,30 @@ public class MainActivity extends Activity implements InstancesUpdater.OnInstanc
                 } catch (Exception e) {
                     result.error = e;
                 }
+            } else {
+                result.error = new Exception("Trending unavailable");
             }
             return result;
         }
 
         @Override
         protected void onPostExecute(TrendingResult result) {
-            findViewById(R.id.loading).setVisibility(View.GONE);
+            if (isDestroyedFlag) return; // Discard safely if activity was killed during rotation
+
+            View loadingView = findViewById(R.id.loading);
+            if (loadingView != null) loadingView.setVisibility(View.GONE);
+
+            View noTrendingView = findViewById(R.id.no_trending);
             if (result.error != null) {
-                findViewById(R.id.no_trending).setVisibility(View.VISIBLE);
+                if (noTrendingView != null) noTrendingView.setVisibility(View.VISIBLE);
                 Toast.makeText(context, result.error.getMessage(), Toast.LENGTH_LONG).show();
-            } else if (trending == null || result.videos.size() == 0) {
-                findViewById(R.id.no_trending).setVisibility(View.VISIBLE);
+            } else if (trending == null || result.videos == null || result.videos.size() == 0) {
+                if (noTrendingView != null) noTrendingView.setVisibility(View.VISIBLE);
             } else {
+                if (noTrendingView != null) noTrendingView.setVisibility(View.GONE);
                 videos = result.videos;
                 adapter = new VideoAdapter(context, R.layout.video_item, videos);
-                listView.setAdapter(adapter);
+                if (listView != null) listView.setAdapter(adapter);
             }
         }
     }

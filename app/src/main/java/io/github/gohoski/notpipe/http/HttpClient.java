@@ -20,10 +20,8 @@ public class HttpClient {
     public static final String USER_AGENT = "notPipe/" + BuildConfig.VERSION_NAME + " (https://github.com/gohoski/notPipe)";
     private static final int TIMEOUT = 20000;
     public static final int VIDEO_TIMEOUT = 60000;
+    public static final int CONVERSION_TIMEOUT = 360000;
 
-    /**
-     * Interface for reporting download progress
-     */
     public interface DownloadProgressListener {
         void onProgress(long bytesDownloaded, long totalBytes);
     }
@@ -46,6 +44,9 @@ public class HttpClient {
         try {
             URL url = new URL(request.getBaseUrl() + request.getEndpoint());
             Log.d("HttpClient", url.toString());
+            String urlStr = url.toString().toLowerCase();
+            if (urlStr.contains("&codec="))
+                timeout = CONVERSION_TIMEOUT;
             connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod(request.getMethod());
             connection.setConnectTimeout(timeout);

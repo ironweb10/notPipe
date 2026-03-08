@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Environment;
 import android.view.View;
 import android.widget.CheckBox;
 import android.widget.CompoundButton;
@@ -71,6 +72,11 @@ public class SettingsActivity extends Activity implements InstancesUpdater.OnIns
             @Override
             public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                 if (isChecked) {
+                    if (!Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)) {
+                        Toast.makeText(context, R.string.sd_card, Toast.LENGTH_LONG).show();
+                        convertVideosChk.setChecked(false);
+                        return;
+                    }
                     convertLayout.setVisibility(View.VISIBLE);
                     setSpinnerSelection(qualitySpinner, "360p");
                     streamPlaybackChk.setChecked(false);
@@ -80,6 +86,18 @@ public class SettingsActivity extends Activity implements InstancesUpdater.OnIns
                     convertLayout.setVisibility(View.GONE);
                     qualitySpinner.setEnabled(true);
                     streamPlaybackChk.setEnabled(true);
+                }
+            }
+        });
+
+        streamPlaybackChk.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override
+            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+                if (!isChecked) {
+                    if (!Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED)) {
+                        Toast.makeText(context, R.string.sd_card, Toast.LENGTH_LONG).show();
+                        streamPlaybackChk.setChecked(true);
+                    }
                 }
             }
         });
