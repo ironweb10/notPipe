@@ -13,6 +13,7 @@ import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
 import android.util.TypedValue;
 import android.view.View;
 import android.view.ViewGroup;
@@ -297,7 +298,7 @@ public class VideoActivity extends Activity {
     }
 
     private int lastScrollY = -1;
-    private android.os.Handler scrollHandler = new android.os.Handler();
+    private Handler scrollHandler = new Handler();
     private Runnable scrollCheckRunnable = new Runnable() {
         @Override
         public void run() {
@@ -382,7 +383,7 @@ public class VideoActivity extends Activity {
                     ViewGroup.LayoutParams.FILL_PARENT,
                     ViewGroup.LayoutParams.FILL_PARENT
             );
-            params.gravity = android.view.Gravity.TOP;
+            params.gravity = android.view.Gravity.CENTER;
             videoView.setLayoutParams(params);
             videoView.requestLayout();
         }
@@ -406,7 +407,7 @@ public class VideoActivity extends Activity {
             public void onPrepared(final MediaPlayer mp) {
                 cancelVideoTimeout();
                 restoreVideoUI();
-                thumbnail.setVisibility(View.GONE);
+                thumbnail.setVisibility(View.INVISIBLE); // Keep it INVISIBLE to maintain bounding box size
                 play.setVisibility(View.GONE);
 
                 videoPrepared = true;
@@ -575,7 +576,7 @@ public class VideoActivity extends Activity {
         videoFrame.setLayoutParams(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.FILL_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
         FrameLayout.LayoutParams videoParams = new FrameLayout.LayoutParams(ViewGroup.LayoutParams.FILL_PARENT, ViewGroup.LayoutParams.FILL_PARENT);
-        videoParams.gravity = android.view.Gravity.TOP;
+        videoParams.gravity = android.view.Gravity.CENTER;
         videoView.setLayoutParams(videoParams);
 
         if (isOpencore) {

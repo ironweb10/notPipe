@@ -21,11 +21,13 @@
             android:id="@+id/video_frame"
             android:layout_width="fill_parent"
             android:layout_height="wrap_content"
+            android:background="@android:color/black"
             android:gravity="center">
             <io.github.gohoski.notpipe.ui.AspectRatioVideoView
                 android:id="@+id/video"
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"
+                android:layout_gravity="center"
                 android:scaleType="fitCenter"/>
             <io.github.gohoski.notpipe.ui.AspectRatioImageView
                 android:id="@+id/thumbnail"

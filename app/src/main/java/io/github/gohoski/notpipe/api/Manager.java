@@ -409,6 +409,7 @@ public class Manager {
     }
 
     public List<InstanceInfo> videoInstancesInfo() {
+        initializeInstances();
         List<InstanceInfo> result = new ArrayList<InstanceInfo>();
         List<VideoStream> allKnown = new ArrayList<VideoStream>();
         List<String> processed = new ArrayList<String>();

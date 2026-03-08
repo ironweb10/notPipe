@@ -45,7 +45,14 @@ public class AspectRatioVideoView extends VideoView {
             height = getHeight() > 0 ? getHeight() : 240;
         }
 
-        if (fullscreen && videoWidth > 0 && videoHeight > 0) {
+        // Apply a strict 16:9 bounding box in non-fullscreen mode
+        if (!fullscreen) {
+            height = (int) (width * (9.0 / 16.0));
+            if (height <= 0) height = (int)(width * 0.5625);
+        }
+
+        // Adjust measurements to fit the exact video aspect ratio inside the bounding box
+        if (videoWidth > 0 && videoHeight > 0) {
             float videoAspect = (float) videoWidth / videoHeight;
             float screenAspect = (float) width / height;
 
@@ -56,11 +63,7 @@ public class AspectRatioVideoView extends VideoView {
                 int measuredHeight = (int) (width / videoAspect);
                 setMeasuredDimension(width, measuredHeight);
             }
-        } else if (fullscreen) {
-            setMeasuredDimension(width, height);
         } else {
-            height = (int) (width * (9.0 / 16.0));
-            if (height <= 0) height = (int)(width * 0.5625);
             setMeasuredDimension(width, height);
         }
 

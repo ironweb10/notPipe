@@ -1,5 +1,7 @@
 package io.github.gohoski.notpipe;
 
+import android.os.Build;
+
 import android.content.Context;
 import android.content.res.Resources;
 
@@ -11,6 +13,22 @@ import java.util.Date;
  * Utility methods
  */
 public class Utils {
+
+    /**
+     * Check if the device is using armeabi (ARMv5/v6) architecture.
+     * These devices benefit from video conversion due to lack of modern codec support.
+     * Android 1.5-1.6 (API 3-4) are all armeabi by default.
+     * Uses reflection to access Build.CPU_ABI to avoid VerifyError on Android 1.5.
+     *
+     * @return true if device is armeabi, false otherwise
+     */
+    public static boolean isArmeabi() {
+        try {
+            return NotPipe.SDK <= 4 || "armeabi".equals(Build.class.getField("CPU_ABI").get(null));
+        } catch (Exception ignored) {
+            return true;
+        }
+    }
 
     /**
      * Parses and combines a base URL with a given URL.

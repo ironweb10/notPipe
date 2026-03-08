@@ -6,6 +6,8 @@ import android.content.SharedPreferences;
 import java.util.ArrayList;
 import java.util.List;
 
+import io.github.gohoski.notpipe.Utils;
+
 /**
  * Created by opencode on 15.02.2026.
  * Singleton manager for loading and saving user configuration.
@@ -90,22 +92,22 @@ public class ConfigManager {
      */
     private void loadConfig() {
         config = new Config();
-        
+
         String invidiousStr = prefs.getString(KEY_INVIDIOUS, "");
         if (invidiousStr.length() > 0) {
             config.setInvidiousInstances(parseList(invidiousStr));
         }
-        
+
         String yt2009Str = prefs.getString(KEY_YT2009, "");
         if (yt2009Str.length() > 0) {
             config.setYt2009Instances(parseList(yt2009Str));
         }
-        
+
         String ytApiLegacyStr = prefs.getString(KEY_YTAPILEGACY, "");
         if (ytApiLegacyStr.length() > 0) {
             config.setYtApiLegacyInstances(parseList(ytApiLegacyStr));
         }
-        
+
         config.setPreferredQuality(prefs.getString(KEY_PREFERRED_QUALITY, "360"));
         config.setS60TubeEnabled(prefs.getBoolean(KEY_ENABLE_S60TUBE, true));
         config.setUpdateInstancesFromUrl(prefs.getBoolean(KEY_UPDATE_INSTANCES, false));
@@ -114,7 +116,7 @@ public class ConfigManager {
         config.setUseExternalPlayer(prefs.getBoolean(KEY_EXTERNAL_PLAYER, false));
         config.setStreamPlayback(prefs.getBoolean(KEY_STREAM_PLAYBACK, true));
         config.setLastUpdate(prefs.getLong(KEY_LAST_UPDATE, 0L));
-        config.setConvertVideos(prefs.getBoolean(KEY_CONVERT_VIDEOS, false));
+        config.setConvertVideos(prefs.getBoolean(KEY_CONVERT_VIDEOS, Utils.isArmeabi()));
         config.setConvertCodec(prefs.getInt(KEY_CONVERT_CODEC, 0));
     }
     
