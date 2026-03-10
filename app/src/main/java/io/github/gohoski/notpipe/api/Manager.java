@@ -22,6 +22,7 @@ import io.github.gohoski.notpipe.NotPipe;
 import io.github.gohoski.notpipe.R;
 import io.github.gohoski.notpipe.config.Config;
 import io.github.gohoski.notpipe.config.ConfigManager;
+import io.github.gohoski.notpipe.http.VideoTooLongException;
 
 /**
  * Manager class for handling multiple API instances with fallback capability.
@@ -208,7 +209,9 @@ public class Manager {
                         }
                         return url;
                     } catch (Exception e) {
-                        if (isDeadInstanceError(e)) {
+                        if (e instanceof VideoTooLongException) {
+                            throw (VideoTooLongException) e;
+                        } else if (isDeadInstanceError(e)) {
                             removeDeadInstance(currentInstance);
                         } else {
                             if (e instanceof IOException) throw (IOException) e;

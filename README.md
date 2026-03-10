@@ -29,6 +29,17 @@ A working YouTube client for **Android 1.5+** utilizing [YtAPILegacy](http://yt.
 * Playlists
 * Authorization via YtAPILegacy
 
+## Solving issues on Android ≤2.3
+*(videos lag or do not play at all)*
+
+If videos do not play, first try typical diagnostics:
+1. **Switch an instance.** Click the "Playback via … >" button. Some instances might be temporarily unavailable.
+2. Make sure your **network is stable.** notPipe may not work properly on a slow Internet connection.
+
+If this does not help, then your device does not support the H.264 codec. Its support depends heavily on the device. There are two ways to solve this problem in notPipe:
+1. **Use [MX Player](https://archive.org/details/mx-player-1.7.39)** (Android 2.1+) and switch to the **external player** in settings. However, on unpowerful devices, it's likely that the player will lag on most videos. You can only try.
+2. **Enable conversion** in settings. This converts the video to the MPEG-4 Visual codec server-side while using the system player. Requires an SD card. This will unfortunately make a delay when playing a video, but it should last no more than 3–5 minutes.
+
 ## Why and how
 Existing methods for watching YouTube on legacy Android suffer from two fatal flaws—poor usability and an inability to survive YouTube’s current anti-bot measures. Current workarounds generally have the following issues:
 * **Single point of failure.** Current *(and previous)* ways of watching YouTube rely on a single specific API instance. The moment an instance gets a noticeable amount of traffic, YouTube automatically bans its IP address. A single instance may also be heavily overloaded, rendering it unusable.
@@ -40,15 +51,6 @@ This project was built from the ground up to solve these exact issues. Instead o
 3. **It just works.** You get a native Android interface without needing to patch your own APKs or configure private servers.
 4. **No single point of failure.** Because this is exactly how previous YouTube clients died, everything is decentralized and open for anyone to contribute.
 5. **Automatic updates of the instances.** The list of the instances is automatically updated and by default loads from http://144.31.189.129/notPipe.json, requiring as less actions from the user as possible.
-
-## Solving playback issues
-If you cannot play videos, please try the following first:
-1. **Switch an instance.** Click the "Playback via … >" button. Some instances might be temporarily unavailable.
-2. Make sure your **network is stable.** notPipe may not work properly on a slow Internet connection.
-
-If it still doesn't work, your device might not support the H.264 codec. There are two ways to mitigate this in notPipe:
-1. **Use [MX Player](https://archive.org/details/mx-player-1.7.39)** (Android 2.1+) and switch to the **external player** in settings. However, on unpowerful devices, it's likely that the player will lag on most videos. You can only try.
-2. **Enable conversion** in settings. This converts the video to the MPEG-4 Visual codec server-side while using the system player and it is recommended to do first on armeabi Android 1.5–2.3 devices. Requires an SD card. This will unfortunately make a delay when playing a video, but it should last no more than 3–5 minutes.
 
 ## Reporting bugs
 **Report bugs in the [Issues](https://github.com/gohoski/numAi/issues) tab!** Don't forget to specify which version of Android you encountered the bug on.

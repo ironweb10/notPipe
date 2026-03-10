@@ -6,6 +6,7 @@ import android.content.SharedPreferences;
 import java.util.ArrayList;
 import java.util.List;
 
+import io.github.gohoski.notpipe.NotPipe;
 import io.github.gohoski.notpipe.Utils;
 
 /**
@@ -114,10 +115,40 @@ public class ConfigManager {
         config.setInstancesUpdateUrl(prefs.getString(KEY_INSTANCES_URL, "http://144.31.189.129/notPipe.json"));
         config.setUpdateFrequency(prefs.getInt(KEY_UPDATE_FREQUENCY, 1));
         config.setUseExternalPlayer(prefs.getBoolean(KEY_EXTERNAL_PLAYER, false));
-        config.setStreamPlayback(prefs.getBoolean(KEY_STREAM_PLAYBACK, true));
         config.setLastUpdate(prefs.getLong(KEY_LAST_UPDATE, 0L));
-        config.setConvertVideos(prefs.getBoolean(KEY_CONVERT_VIDEOS, Utils.isArmeabi()));
-        config.setConvertCodec(prefs.getInt(KEY_CONVERT_CODEC, 0));
+        if (prefs.contains(KEY_CONVERT_VIDEOS)) {
+            config.setStreamPlayback(prefs.getBoolean(KEY_STREAM_PLAYBACK, true));
+            config.setConvertVideos(prefs.getBoolean(KEY_CONVERT_VIDEOS, false));
+            config.setUseExternalPlayer(prefs.getBoolean(KEY_EXTERNAL_PLAYER, false));
+        } else { // First time setup
+            boolean convert, stream, external;
+            boolean notV7 = !Utils.isV7();
+            if (NotPipe.SDK < 5 || (NotPipe.SDK < 8 && notV7)) {
+                // Android <2.0
+                // Android <2.2 and not armeabi-v7a
+                convert = true;
+                stream = false;
+                external = false;
+            } else if (NotPipe.SDK < 11 && notV7) {
+                // Android <3.0 and not armeabi-v7a
+                external = true;
+                stream = true;
+                convert = false;
+            } else {
+                // H.264-capable hardware defaults
+                convert = false;
+                stream = true;
+                external = false;
+            }
+            config.setConvertVideos(convert);
+            config.setStreamPlayback(stream);
+            config.setUseExternalPlayer(external);
+            SharedPreferences.Editor editor = prefs.edit();
+            editor.putBoolean(KEY_CONVERT_VIDEOS, convert);
+            editor.putBoolean(KEY_STREAM_PLAYBACK, stream);
+            editor.putBoolean(KEY_EXTERNAL_PLAYER, external);
+            editor.commit();
+        }
     }
     
     public void resetToDefaults() {

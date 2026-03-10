@@ -82,6 +82,14 @@ public class VideoActivity extends Activity {
     boolean commentsLoaded = false;
     protected boolean isOpencore = NotPipe.SDK < 8; // OpenCORE—multimedia framework used on Android <2.2—has some bugs that need to be catched, hence this boolean
 
+    // AsyncTask references for cancellation
+    private LoadVideoTask loadVideoTask;
+    private ResolveStreamTask resolveStreamTask;
+    private DownloadVideoTask downloadVideoTask;
+    private ConvertVideoTask convertVideoTask;
+    private LoadCommentsTask loadCommentsTask;
+    private LoadRelatedTask loadRelatedTask;
+
     private int videoPosition = 0;
     private boolean videoPlaying = false;
     private boolean videoPrepared = false;
@@ -94,9 +102,6 @@ public class VideoActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        if (getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE) {
-            getWindow().requestFeature(android.view.Window.FEATURE_NO_TITLE);
-        }
         setContentView(R.layout.activity_video);
 
         api = Manager.getInstance().getMetadata();
@@ -220,14 +225,17 @@ public class VideoActivity extends Activity {
                                     videoStream = info.instance;
                                     updatePlaybackViaText(info.host);
 
-                                    thumbnail.setVisibility(View.INVISIBLE);
-                                    play.setVisibility(View.GONE);
+                                    if (!config.isUseExternalPlayer()) {
+                                        thumbnail.setVisibility(View.INVISIBLE);
+                                        play.setVisibility(View.GONE);
+                                    }
                                     findViewById(R.id.video_loading).setVisibility(View.VISIBLE);
 
                                     if (videoView != null && videoPlaying && !config.isUseExternalPlayer()) {
                                         stopAndResetVideo();
                                     }
-                                    new ResolveStreamTask(info.instance).execute(videoId);
+                                    resolveStreamTask = new ResolveStreamTask(info.instance);
+                                    resolveStreamTask.execute(videoId);
                                 }
                             }
                         }).show();
@@ -294,7 +302,8 @@ public class VideoActivity extends Activity {
             enterFullscreenMode();
         }
 
-        new LoadVideoTask().execute(videoId);
+        loadVideoTask = new LoadVideoTask();
+        loadVideoTask.execute(videoId);
     }
 
     private int lastScrollY = -1;
@@ -456,7 +465,8 @@ public class VideoActivity extends Activity {
                     isUsingMetadataUrl = false;
                     Toast.makeText(context, "Stream failed. Trying another instance...", Toast.LENGTH_SHORT).show();
                     findViewById(R.id.video_loading).setVisibility(View.VISIBLE);
-                    new ResolveStreamTask(null).execute(videoId);
+                    resolveStreamTask = new ResolveStreamTask(null);
+                    resolveStreamTask.execute(videoId);
                 } else {
                     if (videoStream != null) Manager.getInstance().removeDeadInstance(videoStream);
                     restoreVideoUI();
@@ -516,6 +526,14 @@ public class VideoActivity extends Activity {
         scrollHandler.removeCallbacks(scrollCheckRunnable);
         cancelVideoTimeout();
         ImageLoader.clearCache();
+        
+        // Cancel all running AsyncTasks to stop background operations
+        if (loadVideoTask != null) loadVideoTask.cancel(true);
+        if (resolveStreamTask != null) resolveStreamTask.cancel(true);
+        if (downloadVideoTask != null) downloadVideoTask.cancel(true);
+        if (convertVideoTask != null) convertVideoTask.cancel(true);
+        if (loadCommentsTask != null) loadCommentsTask.cancel(true);
+        if (loadRelatedTask != null) loadRelatedTask.cancel(true);
     }
 
     @Override
@@ -615,7 +633,8 @@ public class VideoActivity extends Activity {
                         thumbnail.setVisibility(View.INVISIBLE);
                         play.setVisibility(View.GONE);
                         Toast.makeText(context, "Video stream timed out. Trying another instance...", Toast.LENGTH_SHORT).show();
-                        new ResolveStreamTask(null).execute(videoId);
+                        resolveStreamTask = new ResolveStreamTask(null);
+                        resolveStreamTask.execute(videoId);
                     }
                 });
             }
@@ -639,7 +658,8 @@ public class VideoActivity extends Activity {
             relatedLoading.setVisibility(View.GONE);
             relatedLoaded = true;
         } else {
-            new LoadRelatedTask().execute(videoId);
+            loadRelatedTask = new LoadRelatedTask();
+            loadRelatedTask.execute(videoId);
         }
     }
 
@@ -652,7 +672,8 @@ public class VideoActivity extends Activity {
             commentsLoading.setVisibility(View.GONE);
             commentsLoaded = true;
         } else {
-            new LoadCommentsTask().execute(videoId);
+            loadCommentsTask = new LoadCommentsTask();
+            loadCommentsTask.execute(videoId);
         }
     }
 
@@ -660,6 +681,7 @@ public class VideoActivity extends Activity {
         @Override
         protected Video doInBackground(String... params) {
             try {
+                if (isCancelled()) return null;
                 return api.getVideo(params[0]);
             } catch (Exception e) {
                 return null;
@@ -668,6 +690,7 @@ public class VideoActivity extends Activity {
 
         @Override
         protected void onPostExecute(final Video fetchedVideo) {
+            if (isCancelled()) return;
             if (fetchedVideo == null) {
                 findViewById(R.id.loading).setVisibility(View.GONE);
                 Toast.makeText(context, "Failed to load video details. Try reloading.", Toast.LENGTH_SHORT).show();
@@ -709,13 +732,16 @@ public class VideoActivity extends Activity {
             View.OnClickListener playVideo = new View.OnClickListener() {
                 @Override
                 public void onClick(View view) {
-                    thumbnail.setVisibility(View.INVISIBLE);
-                    play.setVisibility(View.GONE);
+                    if (!config.isUseExternalPlayer()) {
+                        thumbnail.setVisibility(View.INVISIBLE);
+                        play.setVisibility(View.GONE);
+                    }
                     findViewById(R.id.video_loading).setVisibility(View.VISIBLE);
 
                     if (config.isConvertVideos() || !"360".equals(quality) || video.videoUrl == null || video.videoUrl.length() == 0) {
                         isUsingMetadataUrl = false;
-                        new ResolveStreamTask(null).execute(videoId);
+                        resolveStreamTask = new ResolveStreamTask(null);
+                        resolveStreamTask.execute(videoId);
                     } else {
                         isUsingMetadataUrl = true;
                         videoUrl = video.videoUrl;
@@ -746,15 +772,19 @@ public class VideoActivity extends Activity {
         protected String doInBackground(String... params) {
             try {
                 String id = params[0];
+                if (isCancelled()) return null;
                 File cachedVideo = getCachedVideoFile(id);
                 if (cachedVideo.exists()) return cachedVideo.getAbsolutePath();
                 String quality = config.getPreferredQuality();
                 if (targetInstance != null) {
                     if (config.isConvertVideos() && targetInstance instanceof YtApiLegacy) {
+                        if (isCancelled()) return null;
                         return ((YtApiLegacy) targetInstance).getConvUrl(id, config.getConvertCodec());
                     }
+                    if (isCancelled()) return null;
                     return targetInstance.getVideoUrl(id, quality);
                 }
+                if (isCancelled()) return null;
                 if (config.isConvertVideos()) {
                     return Manager.getInstance().getVideoUrl(id, quality, config.getConvertCodec(), videoStream, successInstance);
                 }
@@ -767,6 +797,7 @@ public class VideoActivity extends Activity {
 
         @Override
         protected void onPostExecute(String resultUrl) {
+            if (isCancelled()) return;
             isUsingMetadataUrl = false;
 
             if (resultUrl != null) {
@@ -793,7 +824,8 @@ public class VideoActivity extends Activity {
                             progressView.setText(getString(R.string.dvauha_msg, getString(R.string.loading)));
                             progressView.setVisibility(View.VISIBLE);
                         }
-                        new ConvertVideoTask().execute(videoUrl);
+                        convertVideoTask = new ConvertVideoTask();
+                        convertVideoTask.execute(videoUrl);
                     } else {
                         proceedPlay(videoUrl);
                     }
@@ -803,11 +835,13 @@ public class VideoActivity extends Activity {
                 restoreVideoUI();
                 updatePlaybackViaText(videoStream != null ? videoStream.getHost() : api.getHost());
 
-                if (targetInstance != null) {
+                if (errorMessage != null) {
+                    Toast.makeText(context, errorMessage, Toast.LENGTH_SHORT).show();
+                } else if (targetInstance != null) {
                     Manager.getInstance().removeDeadInstance(targetInstance);
                     Toast.makeText(context, "Failed to connect to this instance.", Toast.LENGTH_SHORT).show();
                 } else {
-                    Toast.makeText(context, errorMessage != null ? errorMessage : "Failed to fetch video URL", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(context, "Failed to fetch video URL", Toast.LENGTH_SHORT).show();
                 }
             }
         }
@@ -825,7 +859,8 @@ public class VideoActivity extends Activity {
                     e.printStackTrace();
                 }
             } else {
-                new DownloadVideoTask().execute(targetUrl);
+                downloadVideoTask = new DownloadVideoTask();
+                downloadVideoTask.execute(targetUrl);
             }
         } else {
             stopAndResetVideo();
@@ -839,7 +874,8 @@ public class VideoActivity extends Activity {
                 videoView.setVideoURI(Uri.parse(targetUrl));
                 setupVideoTimeout();
             } else {
-                new DownloadVideoTask().execute(targetUrl);
+                downloadVideoTask = new DownloadVideoTask();
+                downloadVideoTask.execute(targetUrl);
             }
         }
     }
@@ -864,6 +900,7 @@ public class VideoActivity extends Activity {
 
                         @Override
                         public void onProgress(final long bytesDownloaded, final long totalBytes) {
+                            if (isCancelled()) return;
                             if (totalBytes > 0) {
                                 long currentTime = System.currentTimeMillis();
                                 if (currentTime - lastUpdateTime >= 500) {
@@ -874,6 +911,7 @@ public class VideoActivity extends Activity {
                         }
                     });
                 }
+                if (isCancelled()) return null;
                 return videoFile;
             } catch (Exception e) {
                 return null;
@@ -887,6 +925,7 @@ public class VideoActivity extends Activity {
 
         @Override
         protected void onPostExecute(File videoFile) {
+            if (isCancelled()) return;
             if (progressView != null) progressView.setVisibility(View.GONE);
             if (videoFile != null) {
                 if (config.isUseExternalPlayer()) {
@@ -921,7 +960,8 @@ public class VideoActivity extends Activity {
                 thumbnail.setVisibility(View.INVISIBLE);
                 play.setVisibility(View.GONE);
                 Toast.makeText(context, "Download failed. Trying another instance...", Toast.LENGTH_SHORT).show();
-                new ResolveStreamTask(null).execute(videoId);
+                resolveStreamTask = new ResolveStreamTask(null);
+                resolveStreamTask.execute(videoId);
             }
         }
     }
@@ -948,6 +988,7 @@ public class VideoActivity extends Activity {
                 DvaUha.convert(targetUrl, config.getConvertCodec(), new DvaUha.Callback() {
                     @Override
                     public void onMessage(String msg) {
+                        if (isCancelled()) return;
                         publishProgress(msg);
                     }
 
@@ -963,6 +1004,7 @@ public class VideoActivity extends Activity {
 
                     @Override
                     public String onCaptchaRequired(final String imageUrl) {
+                        if (isCancelled()) return "";
                         final String[] result = new String[]{""};
                         final Object lock = new Object();
                         runOnUiThread(new Runnable() {
@@ -1019,11 +1061,13 @@ public class VideoActivity extends Activity {
             } catch (Exception e) {
                 convertException = e;
             }
+            if (isCancelled()) return null;
             return resultUrl[0];
         }
 
         @Override
         protected void onProgressUpdate(String... values) {
+            if (isCancelled()) return;
             TextView progressView = (TextView) findViewById(R.id.video_progress);
             if (progressView != null)
                 progressView.setText(getString(R.string.dvauha_msg, values[0]));
@@ -1031,6 +1075,7 @@ public class VideoActivity extends Activity {
 
         @Override
         protected void onPostExecute(String downloadUrl) {
+            if (isCancelled()) return;
             TextView progressView = (TextView) findViewById(R.id.video_progress);
             if (progressView != null) progressView.setVisibility(View.GONE);
 
@@ -1049,6 +1094,7 @@ public class VideoActivity extends Activity {
         @Override
         protected List<Comment> doInBackground(String... params) {
             try {
+                if (isCancelled()) return null;
                 return api.getComments(params[0]);
             } catch (Exception e) {
                 return null;
@@ -1057,6 +1103,7 @@ public class VideoActivity extends Activity {
 
         @Override
         protected void onPostExecute(List<Comment> result) {
+            if (isCancelled()) return;
             if (result != null) {
                 comments.clear();
                 comments.addAll(result);
@@ -1071,6 +1118,7 @@ public class VideoActivity extends Activity {
         @Override
         protected List<VideoInfo> doInBackground(String... params) {
             try {
+                if (isCancelled()) return null;
                 return api.getRelated(params[0]);
             } catch (Exception e) {
                 return null;
@@ -1079,6 +1127,7 @@ public class VideoActivity extends Activity {
 
         @Override
         protected void onPostExecute(List<VideoInfo> result) {
+            if (isCancelled()) return;
             if (result != null) {
                 relatedVideos.clear();
                 relatedVideos.addAll(result);

@@ -79,13 +79,20 @@ public class SettingsActivity extends Activity implements InstancesUpdater.OnIns
                     }
                     convertLayout.setVisibility(View.VISIBLE);
                     setSpinnerSelection(qualitySpinner, "360p");
+                    playerSpinner.setSelection(0);
                     streamPlaybackChk.setChecked(false);
                     qualitySpinner.setEnabled(false);
+                    playerSpinner.setEnabled(false);
                     streamPlaybackChk.setEnabled(false);
                 } else {
                     convertLayout.setVisibility(View.GONE);
                     qualitySpinner.setEnabled(true);
+                    playerSpinner.setEnabled(true);
                     streamPlaybackChk.setEnabled(true);
+                    if (NotPipe.SDK < 11) {
+                        playerSpinner.setSelection(1);
+                        streamPlaybackChk.setChecked(true);
+                    }
                 }
             }
         });
@@ -114,6 +121,7 @@ public class SettingsActivity extends Activity implements InstancesUpdater.OnIns
 
         if (config.isConvertVideos()) {
             qualitySpinner.setEnabled(false);
+            playerSpinner.setEnabled(false);
             streamPlaybackChk.setEnabled(false);
         }
 
@@ -187,6 +195,6 @@ public class SettingsActivity extends Activity implements InstancesUpdater.OnIns
         invidiousSection.setInstances(config.getInvidiousInstances());
         ytApiLegacySection.setInstances(config.getYtApiLegacyInstances());
         yt2009Section.setInstances(config.getYt2009Instances());
-        Toast.makeText(this, "Instances updated successfully", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, R.string.ins_upd, Toast.LENGTH_SHORT).show();
     }
 }

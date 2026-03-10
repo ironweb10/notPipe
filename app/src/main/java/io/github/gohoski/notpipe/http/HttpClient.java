@@ -73,6 +73,11 @@ public class HttpClient {
 
             int status = connection.getResponseCode();
             if (status >= 200 && status < 300) {
+                String contentType = connection.getContentType();
+                if (urlStr.contains("&codec=") && contentType != null && contentType.startsWith("application/json")) {
+                    connection.disconnect();
+                    throw new VideoTooLongException("Video is too long!");
+                }
                 return new ConnectionInputStream(connection.getInputStream(), connection);
             } else {
                 InputStream errorStream = connection.getErrorStream();
