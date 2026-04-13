@@ -106,4 +106,4 @@ app/src/main/java/io/github/gohoski/notpipe/
 - Never modify the `cc.nnproject.json` package - it's a bundled library
 - SSL certificate verification is disabled for compatibility (`SSLDisabler`)
 - The app uses HTTP for most requests to support older Android versions
-- Use `NotPipe.SDK` for getting the SDK version
+- Use `NotPipe.SDK` for getting the SDK version of the device (since SDK_INT doesn't exist on 1.5)

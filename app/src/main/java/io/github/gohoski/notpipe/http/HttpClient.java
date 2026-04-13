@@ -3,6 +3,7 @@ package io.github.gohoski.notpipe.http;
 import android.util.Log;
 
 import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -11,6 +12,8 @@ import java.net.URL;
 import java.util.Map;
 
 import io.github.gohoski.notpipe.BuildConfig;
+import io.github.gohoski.notpipe.NotPipe;
+import io.github.gohoski.notpipe.Utils;
 
 /**
  * Created by Gleb on 21.08.2025.
@@ -20,6 +23,7 @@ public class HttpClient {
     public static final String USER_AGENT = "notPipe/" + BuildConfig.VERSION_NAME + " (https://github.com/gohoski/notPipe)";
     private static final int TIMEOUT = 20000;
     public static final int VIDEO_TIMEOUT = 60000;
+    public static final int HD_TIMEOUT = 100000;
     public static final int CONVERSION_TIMEOUT = 360000;
 
     public interface DownloadProgressListener {
@@ -40,13 +44,12 @@ public class HttpClient {
      */
     @SuppressWarnings("ConstantConditions")
     public static InputStream execute(HttpRequest request, int timeout) throws IOException {
+        Utils.waitForConnection(NotPipe.getAppContext());
         HttpURLConnection connection = null;
         try {
             URL url = new URL(request.getBaseUrl() + request.getEndpoint());
             Log.d("HttpClient", url.toString());
             String urlStr = url.toString().toLowerCase();
-            if (urlStr.contains("&codec="))
-                timeout = CONVERSION_TIMEOUT;
             connection = (HttpURLConnection) url.openConnection();
             connection.setRequestMethod(request.getMethod());
             connection.setConnectTimeout(timeout);
@@ -151,6 +154,7 @@ public class HttpClient {
      * @throws IOException If there's an error making the request
      */
     public static String getRedirectUrl(String baseUrl, String urlString, int timeout) throws IOException {
+        Utils.waitForConnection(NotPipe.getAppContext());
         HttpURLConnection connection = null;
         System.out.println(baseUrl);
         try {
@@ -161,7 +165,10 @@ public class HttpClient {
             connection.setReadTimeout(timeout);
             connection.setRequestProperty("User-Agent", USER_AGENT);
             connection.setInstanceFollowRedirects(false);
-            connection.getResponseCode();
+            int status = connection.getResponseCode();
+            if (status == 404) {
+                throw new FileNotFoundException("Video quality not available (HTTP 404)");
+            }
             String loc = connection.getHeaderField("Location");
             if (loc == null)
                 throw new IOException("No video url returned");
@@ -217,7 +224,7 @@ public class HttpClient {
         java.io.File file = new java.io.File(outputPath);
         boolean success = false;
         try {
-            in = execute(request, VIDEO_TIMEOUT);
+            in = execute(request, urlString.contains("&codec=") ? CONVERSION_TIMEOUT : VIDEO_TIMEOUT);
             // Get content length if available (may be -1 for chunked transfers)
             long totalBytes = -1;
             if (in instanceof ConnectionInputStream) {

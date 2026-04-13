@@ -29,38 +29,39 @@ public class ConfigManager {
     private static final String KEY_LAST_UPDATE = "last_update";
     private static final String KEY_CONVERT_VIDEOS = "convert_videos";
     private static final String KEY_CONVERT_CODEC = "convert_codec";
+    private static final String KEY_ASYNC_SET_VIDEO_URI = "async_set_video_uri";
 
     private static final String SEPARATOR = ";";
-    
+
     private static ConfigManager instance;
     private Config config;
     private SharedPreferences prefs;
-    
+
     private ConfigManager(Context context) {
         prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
         loadConfig();
     }
-    
+
     public static void init(Context context) {
         if (instance == null) {
             instance = new ConfigManager(context);
         }
     }
-    
+
     public static ConfigManager getInstance() {
         if (instance == null) {
             throw new IllegalStateException("ConfigManager.init(Context) must be called first!");
         }
         return instance;
     }
-    
+
     /**
      * Get a copy of the current configuration.
      */
     public Config getConfig() {
         return new Config(config);
     }
-    
+
     /**
      * Save the given configuration to SharedPreferences.
      */
@@ -68,10 +69,10 @@ public class ConfigManager {
         this.config = new Config(config);
         saveToPrefs();
     }
-    
+
     private void saveToPrefs() {
         SharedPreferences.Editor editor = prefs.edit();
-        
+
         editor.putString(KEY_INVIDIOUS, joinList(config.getInvidiousInstances()));
         editor.putString(KEY_YT2009, joinList(config.getYt2009Instances()));
         editor.putString(KEY_YTAPILEGACY, joinList(config.getYtApiLegacyInstances()));
@@ -85,9 +86,10 @@ public class ConfigManager {
         editor.putLong(KEY_LAST_UPDATE, config.getLastUpdate());
         editor.putBoolean(KEY_CONVERT_VIDEOS, config.isConvertVideos());
         editor.putInt(KEY_CONVERT_CODEC, config.getConvertCodec());
+        editor.putBoolean(KEY_ASYNC_SET_VIDEO_URI, config.isAsyncSetVideoUri());
         editor.commit();
     }
-    
+
     /**
      * Load configuration from SharedPreferences
      */
@@ -116,6 +118,8 @@ public class ConfigManager {
         config.setUpdateFrequency(prefs.getInt(KEY_UPDATE_FREQUENCY, 1));
         config.setUseExternalPlayer(prefs.getBoolean(KEY_EXTERNAL_PLAYER, false));
         config.setLastUpdate(prefs.getLong(KEY_LAST_UPDATE, 0L));
+        config.setAsyncSetVideoUri(prefs.getBoolean(KEY_ASYNC_SET_VIDEO_URI, NotPipe.SDK >= 14 && NotPipe.SDK <= 18));
+
         if (prefs.contains(KEY_CONVERT_VIDEOS)) {
             config.setStreamPlayback(prefs.getBoolean(KEY_STREAM_PLAYBACK, true));
             config.setConvertVideos(prefs.getBoolean(KEY_CONVERT_VIDEOS, false));
@@ -123,17 +127,17 @@ public class ConfigManager {
         } else { // First time setup
             boolean convert, stream, external;
             boolean notV7 = !Utils.isV7();
-            if (NotPipe.SDK < 5 || (NotPipe.SDK < 8 && notV7)) {
+            if (NotPipe.SDK < 5 || (NotPipe.SDK < 9 && notV7)) {
                 // Android <2.0
-                // Android <2.2 and not armeabi-v7a
+                // Android <2.3 and not armeabi-v7a
                 convert = true;
                 stream = false;
                 external = false;
             } else if (NotPipe.SDK < 11 && notV7) {
                 // Android <3.0 and not armeabi-v7a
-                external = true;
-                stream = true;
                 convert = false;
+                stream = true;
+                external = true;
             } else {
                 // H.264-capable hardware defaults
                 convert = false;
@@ -143,14 +147,16 @@ public class ConfigManager {
             config.setConvertVideos(convert);
             config.setStreamPlayback(stream);
             config.setUseExternalPlayer(external);
+            config.setConvertCodec(0);
             SharedPreferences.Editor editor = prefs.edit();
             editor.putBoolean(KEY_CONVERT_VIDEOS, convert);
             editor.putBoolean(KEY_STREAM_PLAYBACK, stream);
             editor.putBoolean(KEY_EXTERNAL_PLAYER, external);
+            editor.putInt(KEY_CONVERT_CODEC, 0);
             editor.commit();
         }
     }
-    
+
     public void resetToDefaults() {
         config = new Config();
         config.applyDefaults();
@@ -161,9 +167,9 @@ public class ConfigManager {
      * Apply default instances if no instances are configured.
      */
     public void ensureInstancesConfigured() {
-        if (config.getInvidiousInstances().isEmpty() 
-            && config.getYt2009Instances().isEmpty() 
-            && config.getYtApiLegacyInstances().isEmpty()) {
+        if (config.getInvidiousInstances().isEmpty()
+                && config.getYt2009Instances().isEmpty()
+                && config.getYtApiLegacyInstances().isEmpty()) {
             config.applyDefaults();
             saveToPrefs();
         }

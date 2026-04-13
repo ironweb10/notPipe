@@ -27,7 +27,7 @@ import io.github.gohoski.notpipe.util.InstancesUpdater;
 public class SettingsActivity extends Activity implements InstancesUpdater.OnInstancesUpdatedListener {
     
     private LinearLayout apiInstancesContainer;
-    private CheckBox updateInstancesChk, streamPlaybackChk, convertVideosChk;
+    private CheckBox updateInstancesChk, streamPlaybackChk, convertVideosChk, asyncUriChk;
     private LinearLayout updateInstancesLayout, convertLayout;
     private EditText instancesUrlEdit;
     private Spinner updateFreqSpinner, playerSpinner, codecSpinner;
@@ -61,6 +61,7 @@ public class SettingsActivity extends Activity implements InstancesUpdater.OnIns
         codecSpinner = (Spinner) findViewById(R.id.codec_spinner);
         convertVideosChk = (CheckBox) findViewById(R.id.convert_chk);
         convertLayout = (LinearLayout) findViewById(R.id.codec_layout);
+        asyncUriChk = (CheckBox) findViewById(R.id.async_uri_chk);
 
         updateInstancesChk.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override
@@ -82,12 +83,12 @@ public class SettingsActivity extends Activity implements InstancesUpdater.OnIns
                     playerSpinner.setSelection(0);
                     streamPlaybackChk.setChecked(false);
                     qualitySpinner.setEnabled(false);
-                    playerSpinner.setEnabled(false);
+//                    playerSpinner.setEnabled(false);
                     streamPlaybackChk.setEnabled(false);
                 } else {
                     convertLayout.setVisibility(View.GONE);
                     qualitySpinner.setEnabled(true);
-                    playerSpinner.setEnabled(true);
+//                    playerSpinner.setEnabled(true);
                     streamPlaybackChk.setEnabled(true);
                     if (NotPipe.SDK < 11) {
                         playerSpinner.setSelection(1);
@@ -118,10 +119,11 @@ public class SettingsActivity extends Activity implements InstancesUpdater.OnIns
         setSpinnerSelection(qualitySpinner, config.getPreferredQuality() + "p");
         convertVideosChk.setChecked(config.isConvertVideos());
         codecSpinner.setSelection(config.getConvertCodec());
+        asyncUriChk.setChecked(config.isAsyncSetVideoUri());
 
         if (config.isConvertVideos()) {
             qualitySpinner.setEnabled(false);
-            playerSpinner.setEnabled(false);
+//            playerSpinner.setEnabled(false);
             streamPlaybackChk.setEnabled(false);
         }
 
@@ -169,6 +171,7 @@ public class SettingsActivity extends Activity implements InstancesUpdater.OnIns
         config.setPreferredQuality(((String) qualitySpinner.getSelectedItem()).replace("p", ""));
         config.setConvertVideos(convertVideosChk.isChecked());
         config.setConvertCodec(codecSpinner.getSelectedItemPosition());
+        config.setAsyncSetVideoUri(asyncUriChk.isChecked());
         
         config.setInvidiousInstances(invidiousSection.getInstances());
         config.setYtApiLegacyInstances(ytApiLegacySection.getInstances());

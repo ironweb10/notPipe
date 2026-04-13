@@ -5,13 +5,13 @@ import android.os.Handler;
 import android.os.Looper;
 import android.widget.Toast;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.net.ConnectException;
-import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
@@ -121,7 +121,10 @@ public class Manager {
 
     public String getVideoUrl(String videoId, String quality, VideoStream preferredInstance, VideoStream[] successfulInstance) throws IOException {
         List<VideoStream> targetList = "360".equals(quality) ? new ArrayList<VideoStream>(videoInstances) : new ArrayList<VideoStream>(hqInstances);
-        if (targetList.isEmpty()) throw new IllegalStateException("No video instances available.");
+        if (targetList.isEmpty()) {
+            reloadInstances();
+            throw new IOException("No video instances left");
+        }
 
         // Prioritize the preferred instance if provided, shuffle the rest
         if (preferredInstance != null && targetList.contains(preferredInstance)) {
@@ -145,14 +148,15 @@ public class Manager {
                     successfulInstance[0] = currentInstance;
                 }
                 return url;
+            } catch (FileNotFoundException e) {
+                // Quality not available on this instance, don't try others for this quality
+                // Let it bubble up to trigger 360p fallback
+                throw e;
             } catch (Exception e) {
                 if (isDeadInstanceError(e)) {
                     removeDeadInstance(currentInstance);
-                    lastError = e;
-                } else {
-                    if (e instanceof IOException) throw (IOException) e;
-                    throw new IOException(e.getMessage());
                 }
+                lastError = e;
             }
         }
 
@@ -173,7 +177,10 @@ public class Manager {
 
     public String getVideoUrl(String videoId, String quality, int codec, VideoStream preferredInstance, VideoStream[] successfulInstance) throws IOException {
         List<VideoStream> targetList = "360".equals(quality) ? new ArrayList<VideoStream>(videoInstances) : new ArrayList<VideoStream>(hqInstances);
-        if (targetList.isEmpty()) throw new IllegalStateException("No video instances available.");
+        if (targetList.isEmpty()) {
+            reloadInstances();
+            throw new IOException("No video instances left");
+        }
 
         if (configManager.getConfig().isConvertVideos()) {
             List<YtApiLegacy> ytApiLegacyInstances = new ArrayList<YtApiLegacy>();
@@ -211,17 +218,15 @@ public class Manager {
                     } catch (Exception e) {
                         if (e instanceof VideoTooLongException) {
                             throw (VideoTooLongException) e;
-                        } else if (isDeadInstanceError(e)) {
+                        }
+                        if (isDeadInstanceError(e)) {
                             removeDeadInstance(currentInstance);
-                        } else {
-                            if (e instanceof IOException) throw (IOException) e;
-                            throw new IOException(e.getMessage());
                         }
                     }
                 }
             }
 
-            // No YtAPILegacy instances left, use other instances
+            // No YtAPILegacy instances left or all failed, use other instances (which falls back to DvaUha)
             targetList = otherInstances;
         }
 
@@ -245,14 +250,15 @@ public class Manager {
                     successfulInstance[0] = currentInstance;
                 }
                 return url;
+            } catch (FileNotFoundException e) {
+                // Quality not available on this instance, don't try others for this quality
+                // Let it bubble up to trigger 360p fallback
+                throw e;
             } catch (Exception e) {
                 if (isDeadInstanceError(e)) {
                     removeDeadInstance(currentInstance);
-                    lastError = e;
-                } else {
-                    if (e instanceof IOException) throw (IOException) e;
-                    throw new IOException(e.getMessage());
                 }
+                lastError = e;
             }
         }
         if (lastError != null) {
@@ -289,19 +295,23 @@ public class Manager {
                         if (currentInstance == null) pickNewInstance();
 
                         Throwable lastError = null;
+                        List<T> localPool = new ArrayList<T>(pool);
 
-                        while (currentInstance != null) {
+                        while (!localPool.isEmpty()) {
+                            if (currentInstance == null || !localPool.contains(currentInstance)) {
+                                currentInstance = localPool.get(random.nextInt(localPool.size()));
+                            }
+
                             try {
                                 return method.invoke(currentInstance, args);
                             } catch (InvocationTargetException e) {
                                 lastError = e.getCause();
+                                localPool.remove(currentInstance);
 
                                 if (isDeadInstanceError(lastError)) {
                                     removeDeadInstance(currentInstance);
-                                    pickNewInstance();
-                                } else {
-                                    throw lastError;
                                 }
+                                currentInstance = null;
                             }
                         }
 
@@ -378,14 +388,13 @@ public class Manager {
     private boolean isDeadInstanceError(Throwable t) {
         if (t == null) return false;
 
-        if (t instanceof SocketTimeoutException ||
-                t instanceof ConnectException ||
-                t instanceof UnknownHostException ||
-                t instanceof SocketException) {
-            return true;
+        if (!io.github.gohoski.notpipe.Utils.hasConnection(NotPipe.getAppContext())) {
+            return false;
         }
 
-        if (t instanceof IOException && !(t instanceof java.io.FileNotFoundException)) {
+        if (t instanceof SocketTimeoutException ||
+                t instanceof ConnectException ||
+                t instanceof UnknownHostException) {
             return true;
         }
 

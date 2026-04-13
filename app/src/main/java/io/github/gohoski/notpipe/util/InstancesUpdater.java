@@ -101,12 +101,11 @@ public class InstancesUpdater {
             if (load != null) {
                 load.dismiss();
             }
-            if (success) {
-                if (listener != null) {
-                    listener.onInstancesUpdated();
-                }
-            } else {
+            if (!success) {
                 Toast.makeText(context, "Update failed: " + error.getMessage(), Toast.LENGTH_LONG).show();
+            }
+            if (listener != null) {
+                listener.onInstancesUpdated();
             }
         }
     }

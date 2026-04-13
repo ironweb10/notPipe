@@ -55,7 +55,7 @@
         <item>Every 3 days</item>
     </string-array>
     <string name="update">Update</string>
-    <string name="quality_recommend">For smooth playback, 360p is recommended. 480p may be unavailable for some videos.</string>
+    <string name="quality_recommend">For smooth playback, 360p is recommended.</string>
     <string name="video_player">Video player</string>
     <string-array name="video_player_">
         <item>Internal</item>
@@ -69,7 +69,7 @@
     <string name="url">Enter URL</string>
     <string name="updating_instances">Updating instances</string>
     <string name="conversion">Conversion</string>
-        <string name="conversion_">Conversion may help if your device does not support H.264 and MX Player is slow or not available. For YtAPILegacy instances, internal conversion is used and they are tried first. For other APIs, conversion is handled through the website cnv.2yxa.mobi. SD card required. With conversion, please do not try to view long videos. <b>Do not enable if videos are playing normally.</b></string>
+    <string name="conversion_">Conversion may help if your device does not support H.264 and MX Player is slow or not available. For YtAPILegacy instances, internal conversion is used and they are tried first. For other APIs, conversion is handled through the website cnv.2yxa.mobi. SD card required. With conversion, please do not try to view long videos. <b>Do not enable if videos are playing normally.</b></string>
     <string name="convert_videos">Convert videos</string>
     <string name="video_codec">Video codec</string>
     <string name="setting_footer">notPipe — YouTube client for legacy Android\n▶ github.com/gohoski/notPipe\n▶ t.me/AppDataApps</string>
@@ -81,10 +81,20 @@
     <string name="dead_instance">Dead instance %s, switching</string>
     <string name="try_again">Try again</string>
     <string name="select_ins">Select instance</string>
-    <string name="desc">Video description</string>
+    <string name="desc">Description</string>
     <string name="loading_">(loading)</string>
     <string name="conv_long">Conversion may take a long time. Please wait.</string>
     <string name="cache">cache</string>
-    <string name="sd_card">An SD card is required to disable stream playback</string>
+    <string name="sd_card">To continue, please insert an SD card</string>
     <string name="ins_upd">Instances updated successfully</string>
+    <string name="subscribers">%s subscribers</string>
+    <string name="video_count">Number of videos found: %d</string>
+    <string name="full_screen">Full screen</string>
+    <string name="download">Download</string>
+    <string name="channel">Channel</string>
+    <string name="no_quality">Selected quality is not available, trying 360p</string>
+    <string name="metadata_fail">Failed to load video details, please try again</string>
+    <string name="async_uri">Asynchronous player initialization</string>
+    <string name="async_uri_">This may resolve freezing issues on some devices running Android 4.0–4.3. Enable this option if the app freezes for a few seconds before playback begins.</string>
+    <string name="sd_card_space">There isn\'t enough free space on the SD card</string>
 </resources>

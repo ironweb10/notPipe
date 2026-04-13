@@ -24,26 +24,56 @@ import java.util.concurrent.Executors;
 public class ImageLoader {
     private static final Hashtable<String, Bitmap> memoryCache = new Hashtable<String, Bitmap>();
     private static final LinkedList<String> cacheHistory = new LinkedList<String>();
-    private static final Hashtable<String, List<ImageView>> pendingViews = new Hashtable<String, List<ImageView>>();
+    private static final Hashtable<String, List<ImageRequest>> pendingViews = new Hashtable<String, List<ImageRequest>>();
     private static final int MAX_CACHE_SIZE = 30;
-    private static final ExecutorService executor = Executors.newFixedThreadPool(4);
+    private static final ExecutorService executor = Executors.newFixedThreadPool(6);
     private static final Handler uiHandler = new Handler(Looper.getMainLooper());
-    
+
+    public interface ImageLoaderCallback {
+        void onFail();
+    }
+
+    public static class ImageRequest {
+        public ImageView view;
+        public ImageLoaderCallback callback;
+
+        public ImageRequest(ImageView view, ImageLoaderCallback callback) {
+            this.view = view;
+            this.callback = callback;
+        }
+    }
+
     /**
      * Load an image from URL into an ImageView with caching enabled.
      * Best for ListViews where images are recycled.
      */
     public static void loadImage(final String url, final ImageView imageView) {
-        loadImage(url, imageView, true);
+        loadImage(url, imageView, true, null);
     }
-    
+
+    public static synchronized void loadImage(final String url, final ImageView imageView, final boolean useCache) {
+        loadImage(url, imageView, useCache, null);
+    }
+
     /**
      * Load an image from URL into an ImageView.
      * @param url The image URL
      * @param imageView The ImageView to display the image in
      * @param useCache Whether to use memory caching
+     * @param callback Callback to listen for load events
      */
-    public static synchronized void loadImage(final String url, final ImageView imageView, final boolean useCache) {
+    public static synchronized void loadImage(final String url, final ImageView imageView, final boolean useCache, final ImageLoaderCallback callback) {
+        if (url == null || url.length() == 0) {
+            if (callback != null) {
+                uiHandler.post(new Runnable() {
+                    @Override
+                    public void run() {
+                        callback.onFail();
+                    }
+                });
+            }
+            return;
+        }
         if (imageView != null) {
             imageView.setTag(url);
         }
@@ -55,15 +85,11 @@ public class ImageLoader {
             return;
         }
         if (pendingViews.containsKey(url)) {
-            if (imageView != null) {
-                pendingViews.get(url).add(imageView);
-            }
+            pendingViews.get(url).add(new ImageRequest(imageView, callback));
             return;
         }
-        final List<ImageView> views = new ArrayList<ImageView>();
-        if (imageView != null) {
-            views.add(imageView);
-        }
+        final List<ImageRequest> views = new ArrayList<ImageRequest>();
+        views.add(new ImageRequest(imageView, callback));
         pendingViews.put(url, views);
         executor.execute(new ImageLoadRunnable(url, useCache));
     }
@@ -79,7 +105,6 @@ public class ImageLoader {
 
         @Override
         public void run() {
-//            Log.d("ImageLoader", url);
             final int MAX_RETRIES = 2;
             Bitmap bmp = null;
 
@@ -89,6 +114,17 @@ public class ImageLoader {
                     HttpURLConnection conn = (HttpURLConnection) aURL.openConnection();
                     conn.setConnectTimeout(5000);
                     conn.setReadTimeout(10000);
+                    conn.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:148.0) Gecko/20100101 Firefox/148.0");
+                    conn.setRequestProperty("Accept", "image/avif,image/webp,image/png,image/svg+xml,image/*;q=0.8,*/*;q=0.5");
+                    conn.setRequestProperty("Accept-Language", "ru-RU,ru;q=0.9,en-GB;q=0.8,en;q=0.7");
+                    conn.setRequestProperty("Accept-Encoding", "gzip, deflate, br, zstd");
+                    conn.setRequestProperty("Referer", "https://www.youtube.com/");
+                    conn.setRequestProperty("Sec-Fetch-Storage-Access", "active");
+                    conn.setRequestProperty("Sec-Fetch-Dest", "image");
+                    conn.setRequestProperty("Sec-Fetch-Mode", "no-cors");
+                    conn.setRequestProperty("Sec-Fetch-Site", "cross-site");
+                    conn.setRequestProperty("Priority", "u=5, i");
+                    conn.setRequestProperty("TE", "trailers");
                     conn.connect();
                     InputStream is = conn.getInputStream();
                     bmp = BitmapFactory.decodeStream(is);
@@ -115,9 +151,9 @@ public class ImageLoader {
             uiHandler.post(new Runnable() {
                 @Override
                 public void run() {
-                    List<ImageView> pendingList;
+                    List<ImageRequest> pendingList;
                     synchronized (ImageLoader.class) {
-                        pendingList = new ArrayList<ImageView>(pendingViews.get(url));
+                        pendingList = new ArrayList<ImageRequest>(pendingViews.get(url));
                         pendingViews.remove(url);
                     }
 
@@ -135,12 +171,18 @@ public class ImageLoader {
                             }
                         }
 
-                        for (ImageView iv : pendingList) {
-                            if (iv != null) {
-                                String currentTag = (String) iv.getTag();
+                        for (ImageRequest req : pendingList) {
+                            if (req.view != null) {
+                                String currentTag = (String) req.view.getTag();
                                 if (url.equals(currentTag)) {
-                                    iv.setImageBitmap(finalBmp);
+                                    req.view.setImageBitmap(finalBmp);
                                 }
+                            }
+                        }
+                    } else {
+                        for (ImageRequest req : pendingList) {
+                            if (req.callback != null) {
+                                req.callback.onFail();
                             }
                         }
                     }
@@ -148,14 +190,14 @@ public class ImageLoader {
             });
         }
     }
-    
+
     /**
      * Preload an image into cache without displaying it.
      */
     public static void preloadImage(final String url) {
-        loadImage(url, null, true);
+        loadImage(url, null, true, null);
     }
-    
+
     /**
      * Cancel loading for a specific ImageView.
      * Call this when the view scrolls off-screen.
@@ -165,7 +207,7 @@ public class ImageLoader {
             imageView.setTag(null);
         }
     }
-    
+
     /**
      * Cancel all pending image loads.
      * Useful when clearing a list.
@@ -175,7 +217,7 @@ public class ImageLoader {
             pendingViews.clear();
         }
     }
-    
+
     /**
      * Clear the memory cache to free memory.
      */
@@ -184,7 +226,7 @@ public class ImageLoader {
         cacheHistory.clear();
         System.gc();
     }
-    
+
     /**
      * Get current cache size.
      */

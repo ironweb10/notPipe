@@ -3,6 +3,7 @@ package io.github.gohoski.notpipe.api;
 import java.io.IOException;
 import java.util.List;
 
+import io.github.gohoski.notpipe.data.Channel;
 import io.github.gohoski.notpipe.data.Comment;
 import io.github.gohoski.notpipe.data.Video;
 import io.github.gohoski.notpipe.data.VideoInfo;
@@ -19,4 +20,8 @@ public interface Metadata {
     Video getVideo(String id) throws IOException;
     List<Comment> getComments(String id) throws IOException;
     List<VideoInfo> getRelated(String id) throws IOException;
+    String getThumbnail(String id);
+
+    Channel getChannel(String id) throws IOException; /** This method resolves both @usernames and UC channel IDs! */
+    String getChannelIcon(String id) throws IOException;
 }

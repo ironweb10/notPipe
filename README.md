@@ -1,7 +1,7 @@
 # notPipe
 **English** / [русский](README.ru.md) 
 
-A working YouTube client for **Android 1.5+** utilizing [YtAPILegacy](http://yt.modyleprojects.ru), [Invidious](https://invidious.io) and [yt2009](https://github.com/ftde0/yt2009) APIs. Made with ❤ and longevity in mind. Instead of using a single instance, the app uses multiple instances at the same time for reliability.
+A working YouTube client for **Android 1.5+** utilizing [Invidious](https://invidious.io), [yt2009](https://github.com/ftde0/yt2009) and [YtAPILegacy](http://yt.modyleprojects.ru) APIs. Made with ❤ and longevity in mind. Instead of using a single instance, the app uses multiple instances at the same time for reliability.
 * **Telegram channel with updates**: [@AppDataApps](https://t.me/AppDataApps)
 * **[Retro Android Group](https://t.me/retroandroidgroup)** on Telegram
 
@@ -12,22 +12,28 @@ A working YouTube client for **Android 1.5+** utilizing [YtAPILegacy](http://yt.
 ## 📥 Download
 * [GitHub Releases](https://github.com/gohoski/notPipe/releases)
 * [OldMarket](http://oldmarket.store/app.php?id=536)
-* [Market Reborn](http://market.lyano.ovh/details/?id=io.github.gohoski.notpipe)
+* [MyIntCountry](http://myintcountry.ru/index.php?board=android&action=display&num=1)
 * Telegram (link at the top of the README)
+* [4PDA](https://4pda.to/forum/index.php?showtopic=1119054)
+* [Appteka](https://appteka.store/apps/0d0r273445)
+* [Lyano Market](http://market.lyano.ovh/details/?id=io.github.gohoski.notpipe)
+* [NeonApps](http://neonapps.ru/app.php?id=456)
 
 ## Features
 > [!NOTE]  
-> Due to various limitations, the app does not connect to YouTube directly. Instead it connects to various instances of YtAPILegacy, Invidious and yt2009. See ["Why and how"](#why-and-how) for more information.
+> Due to various limitations, the app does not connect to YouTube directly. Instead it connects to various instances of Invidious, yt2009 and YtAPILegacy. This can also bypass network restrictions of YouTube. See ["Why and how"](#why-and-how) for more information.
 * Trending, search
 * Videos, related videos, comments
 * Video playback
+* Channels
 * Video conversion for devices that do not support H.264
 * Automatic updates of the list of instances from a URL
+* Tablet design
 ### TODO
-* Landscape, tablet layout (it works on tablets but doesn't look usable)
-* Channels
 * Playlists
-* Authorization via YtAPILegacy
+* Authorization via yt2009/YtAPILegacy
+* Video download
+* Audio download or music mode
 
 ## Solving issues on Android ≤2.3
 *(videos lag or do not play at all)*
@@ -37,7 +43,7 @@ If videos do not play, first try typical diagnostics:
 2. Make sure your **network is stable.** notPipe may not work properly on a slow Internet connection.
 
 If this does not help, then your device does not support the H.264 codec. Its support depends heavily on the device. There are two ways to solve this problem in notPipe:
-1. **Use [MX Player](https://archive.org/details/mx-player-1.7.39)** (Android 2.1+) and switch to the **external player** in settings. However, on unpowerful devices, it's likely that the player will lag on most videos. You can only try.
+1. **Use [MX Player](https://files.catbox.moe/mhq8qr.7z)** (Android 2.1+) and switch to the **external player** in settings. However, on unpowerful devices, it's likely that the player will lag on most videos. You can only try.
 2. **Enable conversion** in settings. This converts the video to the MPEG-4 Visual codec server-side while using the system player. Requires an SD card. This will unfortunately make a delay when playing a video, but it should last no more than 3–5 minutes.
 
 ## Why and how
@@ -69,9 +75,9 @@ It is recommended to use AS while contributing; however, you may use another IDE
 ## Acknowledgments
 * [How-to-develop-and-backport-for-Android-2.1-in-2020](https://github.com/Mik-el/How-to-develop-and-backport-for-Android-2.1-in-2020) project template by Michele
 * [NNJSON](https://github.com/shinovon/NNJSON) library by nnproject
-* **Special thanks to all [YtAPILegacy](https://github.com/ZendoMusic/yt-api-legacy/graphs/contributors), [Invidious](https://github.com/iv-org/invidious/graphs/contributors) and [yt2009](https://github.com/ftde0/yt2009/graphs/contributors) contributors for making these awesome APIs possible**
+* **Special thanks to all [Invidious](https://github.com/iv-org/invidious/graphs/contributors), [yt2009](https://github.com/ftde0/yt2009/graphs/contributors) and [YtAPILegacy](https://github.com/ZendoMusic/yt-api-legacy/graphs/contributors) contributors for making these awesome APIs possible**
 ### Previous YouTube clients
-Although not used as inspiration or a codebase, these previously working apps deserve acknowledgment, as they led to the idea of this project.
+Although not used as inspiration or a codebase, these other attempts of implementing YouTube deserve acknowledgment, as they led to the idea of this project.
 * [Mini YouTube by monobogdan](https://github.com/monobogdan/selfeco) — client for Android 2.0+ utilizing a hardcoded Invidious instance with requests proxied to monobogdan's Russian server. The proxy server is dead and considering it has a single point of failure, it's not worth it to compile the project with a new instance even with the proxy removed.
 * [ReOldTube by YMP Yuri](https://github.com/YMP-CO/ReOld-Tube) — client for Android 3.0+ utilizing Invidious. While it can be configured in settings to be used today, it has numerous bugs *(and is vibecoded)*.
 ## License

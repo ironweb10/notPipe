@@ -1,12 +1,17 @@
 package io.github.gohoski.notpipe;
 
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.Build;
 
 import android.content.Context;
 import android.content.res.Resources;
 
+import java.io.IOException;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Created by Gleb on 21.01.2026.
@@ -18,8 +23,7 @@ public class Utils {
     public static boolean isV7() {
         if (isV7 == null) {
             try {
-                Object abi = Build.class.getField("CPU_ABI").get(null);
-                isV7 = "armeabi-v7a".equals(abi);
+                isV7 = "armeabi-v7a".equals(Build.class.getField("CPU_ABI").get(null));
             } catch (Exception ignored) {
                 isV7 = false;
             }
@@ -91,7 +95,7 @@ public class Utils {
      * @param subscriberCount The subscriber count string (e.g., "1.29K", "2.44M", "500")
      * @return The subscriber count as an integer
      */
-    public static int parseTextCount(String subscriberCount) {
+    public static long parseTextCount(String subscriberCount) {
         if (subscriberCount == null || subscriberCount.length() == 0) {
             return 0;
         }
@@ -108,13 +112,13 @@ public class Utils {
             countStr = countStr.substring(0, countStr.length() - 1);
         }
         try {
-            return (int) Math.round(Double.parseDouble(countStr) * multiplier);
+            return Math.round(Double.parseDouble(countStr) * multiplier);
         } catch (NumberFormatException e) {
             return 0;
         }
     }
 
-    public static String formatNumber(Context context, int number) {
+    public static String formatNumber(Context context, long number) {
         if (number < 1000) return String.valueOf(number);
 
         Resources res = context.getResources();
@@ -123,49 +127,35 @@ public class Utils {
         String billions = res.getString(R.string.billions_suffix);
         String decimalSep = res.getString(R.string.decimal_separator);
 
-        // Use long to prevent overflow during calculations
-        long absNumber = Math.abs((long) number);
+        long absNumber = Math.abs(number);
         StringBuffer sb = new StringBuffer();
         if (number < 0) {
             sb.append('-');
         }
 
         if (absNumber >= 1000000000L) {
-            long value = (absNumber + 500000000L) / 1000000000L;
+            long value = absNumber / 1000000000L;
             sb.append(value);
             sb.append(billions);
         } else if (absNumber >= 1000000L) {
-            long value = (absNumber + 500000L) / 1000000L;
+            long value = absNumber / 1000000L;
             sb.append(value);
             sb.append(millions);
         } else if (absNumber >= 10000L) {
-            long value = (absNumber + 500L) / 1000L;
+            long value = absNumber / 1000L;
             sb.append(value);
             sb.append(thousands);
         } else {
-            // (9.04K, 1.23K, etc.)
-            double value = absNumber / 1000.0;
-            // Truncate to 2 decimal places (not round)
-            value = Math.floor(value * 100.0) / 100.0;
+            int truncated = (int) (absNumber / 10); // e.g. 1234 -> 123
+            int whole = truncated / 100;            // 1
+            int frac  = truncated % 100;            // 23
 
-            int wholePart = (int) value;
-            int fractionalPart = (int) ((value - wholePart) * 100.0);
-            if (fractionalPart >= 100) {
-                wholePart += fractionalPart / 100;
-                fractionalPart = fractionalPart % 100;
-            }
-
-            sb.append(wholePart);
-
-            // Only show decimal places if they are non-zero
-            if (fractionalPart > 0) {
+            sb.append(whole);
+            if (frac > 0) {
                 sb.append(decimalSep);
-                int firstDec = fractionalPart / 10;
-                int secondDec = fractionalPart % 10;
-                sb.append(firstDec);
-                sb.append(secondDec);
+                sb.append(frac / 10);
+                if (frac % 10 != 0) sb.append(frac % 10);
             }
-
             sb.append(thousands);
         }
 
@@ -174,37 +164,37 @@ public class Utils {
 
     public static Date parseRelativeDate(String relativeDate) {
         if (relativeDate == null) return null;
-        String input = relativeDate/*.toLowerCase()*/.trim();
-        if (!input.endsWith("ago")) return null;
-        String timePart = input.substring(0, input.length() - 3).trim();
-        String[] parts = timePart.split("\\s+");
-
-        if (parts.length < 2) return null;
-        int amount;
-        try {
-            amount = Integer.parseInt(parts[0]);
+        String input = relativeDate.toLowerCase().trim();
+        if (input.endsWith("ago"))
+            input = input.substring(0, input.length() - 3).trim();
+        else if (input.endsWith("назад"))
+            input = input.substring(0, input.length() - 5).trim();
+        else return null;
+        Matcher m = Pattern.compile("^(\\d+)\\s*([a-zа-яё]+)?$").matcher(input);
+        if (!m.find()) return null;
+        int amount; try {
+            amount = Integer.parseInt(m.group(1));
         } catch (NumberFormatException e) {
             return null;
         }
-        String unit = parts[1];
+        String unit = m.group(2);
+        if (unit == null || unit.length() == 0) return null;
         Calendar cal = Calendar.getInstance();
-        switch(unit) {
-            case "month":
-            case "months":
+        switch (unit) {
+            case "month": case "months": case "месяц": case "месяца": case "месяцев": case "mo":
                 cal.add(Calendar.MONTH, -amount); break;
-            case "year":
-            case "years":
+            case "year": case "years": case "год": case "года": case "лет": case "y":
                 cal.add(Calendar.YEAR, -amount); break;
-            case "day":
-            case "days":
+            case "day": case "days": case "день": case "дня": case "дней": case "d":
                 cal.add(Calendar.DAY_OF_MONTH, -amount); break;
-            case "week":
-            case "weeks":
+            case "week": case "weeks": case "неделю": case "недели": case "недель": case "w":
                 cal.add(Calendar.WEEK_OF_YEAR, -amount); break;
-//            case "hour":
-//            case "hours":
+            case "hour": case "hours": case "час": case "часа": case "часов": case "h":
+                cal.add(Calendar.HOUR_OF_DAY, -amount); break;
+            case "minute": case "minutes": case "минуту": case "минуты": case "минут": case "m":
+                cal.add(Calendar.MINUTE, -amount); break;
             default:
-                cal.add(Calendar.HOUR_OF_DAY, -amount);
+                cal.add(Calendar.SECOND, -amount);
         }
         return cal.getTime();
     }
@@ -242,12 +232,50 @@ public class Utils {
             return res.getQuantityString(R.plurals.hours_ago, (int) hours, hours);
         } else if (minutes > 0) {
             return res.getQuantityString(R.plurals.minutes_ago, (int) minutes, minutes);
-        } else if (seconds > 0) {
-            // Only call getQuantityString if seconds is at least 1 to avoid the Android 1.5 crash
+        } else if (seconds > 30) {
             return res.getQuantityString(R.plurals.seconds_ago, (int) seconds, seconds);
         } else {
-            // Handle the 0 seconds case
             return context.getString(R.string.just_now);
+        }
+    }
+
+    public static boolean hasConnection(Context context) {
+        if (context == null) return true; // Fallback to avoid breaking
+        try {
+            ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+            NetworkInfo netInfo = cm.getActiveNetworkInfo();
+            return netInfo != null && netInfo.isConnected();
+        } catch (Exception e) {
+            return true; // Ignore if permission missing or service unavailable
+        }
+    }
+
+    /**
+     * Blocks the current thread until the internet is available.
+     * Safe to run in AsyncTask doInBackground.
+     */
+    public static void waitForConnection(Context context) throws IOException {
+        if (context == null) return;
+        boolean waited = false;
+
+        while (!hasConnection(context)) {
+            waited = true;
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                // If the user closes the app, the AsyncTask gets cancelled and interrupts the sleep
+                Thread.currentThread().interrupt();
+                throw new IOException("Request cancelled while waiting for network");
+            }
+        }
+
+        // Wait extra after network is restored
+        if (waited) {
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
         }
     }
 }

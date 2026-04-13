@@ -9,7 +9,7 @@ import java.util.List;
  * Uses Java 1.5 compatible getters/setters (no Lombok/data classes).
  */
 public class Config {
-    
+
     private List<String> invidiousInstances;
     private List<String> yt2009Instances;
     private List<String> ytApiLegacyInstances;
@@ -23,13 +23,14 @@ public class Config {
     private long lastUpdate;
     private boolean convertVideos;
     private int convertCodec;
-    
+    private boolean asyncSetVideoUri;
+
     public Config() {
         invidiousInstances = new ArrayList<String>();
         yt2009Instances = new ArrayList<String>();
         ytApiLegacyInstances = new ArrayList<String>();
     }
-    
+
     /**
      * Copy constructor for creating a defensive copy.
      */
@@ -47,36 +48,37 @@ public class Config {
         lastUpdate = other.lastUpdate;
         convertVideos = other.convertVideos;
         convertCodec = other.convertCodec;
+        asyncSetVideoUri = other.asyncSetVideoUri;
     }
-    
+
     public List<String> getInvidiousInstances() {
         return invidiousInstances;
     }
-    
+
     public void setInvidiousInstances(List<String> instances) {
         this.invidiousInstances = instances;
     }
-    
+
     public List<String> getYt2009Instances() {
         return yt2009Instances;
     }
-    
+
     public void setYt2009Instances(List<String> instances) {
         this.yt2009Instances = instances;
     }
-    
+
     public List<String> getYtApiLegacyInstances() {
         return ytApiLegacyInstances;
     }
-    
+
     public void setYtApiLegacyInstances(List<String> instances) {
         this.ytApiLegacyInstances = instances;
     }
-    
+
     public String getPreferredQuality() {
         return preferredQuality;
     }
-    
+
     public void setPreferredQuality(String quality) {
         this.preferredQuality = quality;
     }
@@ -153,12 +155,19 @@ public class Config {
         this.convertCodec = convertCodec;
     }
 
+    public boolean isAsyncSetVideoUri() {
+        return asyncSetVideoUri;
+    }
+
+    public void setAsyncSetVideoUri(boolean asyncSetVideoUri) {
+        this.asyncSetVideoUri = asyncSetVideoUri;
+    }
+
     /**
      * Add default instance. Called by ConfigManager.ensureInstancesConfigured()
      * when all instance lists are empty.
      */
     public void applyDefaults() {
-        ytApiLegacyInstances.add("http://yt.legacyprojects.ru");
         ytApiLegacyInstances.add("http://yt.modyleprojects.ru");
         ytApiLegacyInstances.add("http://yt.swlbst.ru");
 

@@ -9,10 +9,12 @@ import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.Gravity;
+import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.AdapterView;
 import android.widget.AutoCompleteTextView;
@@ -149,6 +151,17 @@ public class MainActivity extends Activity implements InstancesUpdater.OnInstanc
                 searchQuery.setText(suggestion);
                 hideKeyboard();
                 searchBtn.performClick();
+            }
+        });
+        searchQuery.setOnEditorActionListener(new TextView.OnEditorActionListener() {
+            @Override
+            public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
+                if (actionId == EditorInfo.IME_ACTION_SEARCH ||
+                        (event != null && event.getAction() == KeyEvent.ACTION_DOWN && event.getKeyCode() == KeyEvent.KEYCODE_ENTER)) {
+                    searchBtn.performClick();
+                    return true;
+                }
+                return false;
             }
         });
         searchBtn.setOnClickListener(new View.OnClickListener() {
@@ -403,7 +416,7 @@ public class MainActivity extends Activity implements InstancesUpdater.OnInstanc
             View noTrendingView = findViewById(R.id.no_trending);
             if (result.error != null) {
                 if (noTrendingView != null) noTrendingView.setVisibility(View.VISIBLE);
-                Toast.makeText(context, result.error.getMessage(), Toast.LENGTH_LONG).show();
+                result.error.printStackTrace();
             } else if (trending == null || result.videos == null || result.videos.size() == 0) {
                 if (noTrendingView != null) noTrendingView.setVisibility(View.VISIBLE);
             } else {

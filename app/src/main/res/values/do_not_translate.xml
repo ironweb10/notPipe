@@ -9,6 +9,6 @@
     </string-array>
     <string-array name="codecs">
         <item>MPEG-4 Visual</item>
-        <!--<item>H.263</item>-->
+        <item>H.263</item>
     </string-array>
 </resources>

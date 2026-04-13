@@ -10,17 +10,15 @@ import java.util.List;
 
 public class Video extends VideoInfo {
     public final int likes, subscribers;
-    public final String description, videoUrl; // videoUrl should be for the default 360p quality
-    public final Date publishedAt;
+    public final String description, videoUrl; // videoUrl should be for the default 360p quality (do not include if it requires another request)
     public final List<Comment> comments;
     public final List<VideoInfo> related;
 
-    public Video(String id, String title, String thumbnail, String channel, String channelThumbnail, String duration, int views, String description, int likes, int subscribers, Date publishedAt, String videoUrl, List<Comment> comments, List<VideoInfo> related) {
-        super(id, title, thumbnail, channel, channelThumbnail, duration, views);
+    public Video(String id, String title, String thumbnail, String channel, String channelThumbnail, String channelId, String duration, long views, Date publishedAt, String description, int likes, int subscribers, String videoUrl, List<Comment> comments, List<VideoInfo> related) {
+        super(id, title, thumbnail, channel, channelThumbnail, channelId, duration, views, publishedAt);
         this.description = description;
         this.likes = likes;
         this.subscribers = subscribers;
-        this.publishedAt = publishedAt;
         this.videoUrl = videoUrl;
         this.comments = comments;
         this.related = related;

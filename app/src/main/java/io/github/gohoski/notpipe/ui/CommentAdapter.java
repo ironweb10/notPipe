@@ -9,9 +9,7 @@ import android.widget.ArrayAdapter;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 import io.github.gohoski.notpipe.R;
 import io.github.gohoski.notpipe.Utils;

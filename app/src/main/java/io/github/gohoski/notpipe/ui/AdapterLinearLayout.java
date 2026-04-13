@@ -105,6 +105,8 @@ public class AdapterLinearLayout extends LinearLayout {
             });
         }
         lastCount = adapter.getCount();
+        requestLayout();
+        invalidate();
     }
     
     /**
@@ -113,12 +115,12 @@ public class AdapterLinearLayout extends LinearLayout {
      */
     public void updateViews() {
         if (adapter == null) return;
-        
         for (int i = 0; i < childViews.size() && i < adapter.getCount(); i++) {
             View oldView = childViews.get(i);
             // Always call getView - it will update the view in place via ViewHolder pattern
             adapter.getView(i, oldView, this);
         }
+        invalidate();
     }
 
     /**

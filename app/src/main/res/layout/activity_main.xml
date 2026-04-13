@@ -19,7 +19,6 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal">
 
-        <!-- Added android:saveEnabled="false" -->
         <AutoCompleteTextView
             android:id="@+id/search_query"
             android:layout_width="0dp"
@@ -27,7 +26,9 @@
             android:hint="@android:string/search_go"
             android:layout_weight="1"
             android:saveEnabled="false"
-            android:singleLine="true"/>
+            android:singleLine="true"
+            android:imeOptions="actionSearch"
+            android:maxLength="100"/>
 
         <ImageButton
             android:id="@+id/search_btn"

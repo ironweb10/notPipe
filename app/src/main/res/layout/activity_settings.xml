@@ -131,6 +131,17 @@
                 android:layout_height="wrap_content"
                 android:text="@string/stream_playback_desc"/>
 
+            <CheckBox
+                android:id="@+id/async_uri_chk"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/async_uri"/>
+
+            <TextView
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/async_uri_"/>
+
             <LinearLayout
                 android:layout_width="fill_parent"
                 android:layout_height="wrap_content"

@@ -1,15 +1,18 @@
 package io.github.gohoski.notpipe.data;
 
+import java.util.Date;
+
 /**
  * Created by Gleb on 09.01.2026.
  * Use -1 for int values if not available from API
  */
 
 public class VideoInfo {
-    public final String title, thumbnail, id, channel, channelThumbnail, duration;
-    public final int views;
+    public final String title, thumbnail, id, channel, channelThumbnail, duration, channelId;
+    public final long views;
+    public final Date publishedAt;
 
-    public VideoInfo(String id, String title, String thumbnail, String channel, String channelThumbnail, String duration, int views) {
+    public VideoInfo(String id, String title, String thumbnail, String channel, String channelThumbnail, String channelId, String duration, long views, Date publishedAt) {
         this.title = title;
         this.thumbnail = thumbnail;
         this.id = id;
@@ -17,6 +20,8 @@ public class VideoInfo {
         this.channelThumbnail = channelThumbnail;
         this.duration = duration;
         this.views = views;
+        this.publishedAt = publishedAt;
+        this.channelId = channelId;
     }
 
     @Override
