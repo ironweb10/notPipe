@@ -30,17 +30,43 @@ jobs:
           "$SDKMANAGER" "platforms;android-25" "build-tools;25.0.0"
 
 
-      - name: Set up JDK 8 (for Gradle / AGP 2.3.2)
+      - name: Set up JDK 8 (for Gradle build)
         uses: actions/setup-java@v4
         with:
           java-version: '8'
           distribution: 'temurin'
 
 
-      - name: Patch repositories (JCenter → Maven Central + Google Maven)
+      - name: Patch build files (AGP 2.3.2 → 3.1.4, Gradle 3.3 → 4.6)
         run: |
-          sed -i "s|jcenter()|mavenCentral()\n        maven { url 'https://dl.google.com/dl/android/maven2/' }|g" build.gradle
-          echo "=== build.gradle after patch ===" && cat build.gradle
+          # Root build.gradle: replace classpath and repositories
+          cat > build.gradle << 'EOF'
+          buildscript {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+              dependencies {
+                  classpath 'com.android.tools.build:gradle:3.1.4'
+              }
+          }
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
+          task clean(type: Delete) {
+              delete rootProject.buildDir
+          }
+          EOF
+
+          # Gradle wrapper: bump to 4.6 (required by AGP 3.1.x)
+          sed -i 's|distributionUrl=.*|distributionUrl=https\\://services.gradle.org/distributions/gradle-4.6-all.zip|' \
+            gradle/wrapper/gradle-wrapper.properties
+
+          echo "=== build.gradle ===" && cat build.gradle
+          echo "=== gradle-wrapper.properties ===" && cat gradle/wrapper/gradle-wrapper.properties
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
@@ -60,8 +86,6 @@ jobs:
         env:
           ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
 
-
-      
       - name: Sign APK (debug keystore)
         run: |
           if [ ! -f ~/.android/debug.keystore ]; then
@@ -87,7 +111,7 @@ jobs:
             "$APK"
 
 
-      
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
