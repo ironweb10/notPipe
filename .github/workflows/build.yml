@@ -16,6 +16,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+
       - name: Set up JDK 17 (for sdkmanager)
         uses: actions/setup-java@v4
         with:
@@ -24,7 +25,6 @@ jobs:
 
       - name: Install SDK platform 25 & build-tools 25.0.0
         run: |
-          # The runner ships cmdline-tools; use them directly
           SDKMANAGER="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
           yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
           "$SDKMANAGER" "platforms;android-25" "build-tools;25.0.0"
@@ -39,7 +39,8 @@ jobs:
 
       - name: Patch repositories (JCenter → Maven Central + Google Maven)
         run: |
-          sed -i "s|jcenter()|mavenCentral()\n        maven { url 'https://maven.google.com' }|g" build.gradle
+          sed -i "s|jcenter()|mavenCentral()\n        maven { url 'https://dl.google.com/dl/android/maven2/' }|g" build.gradle
+          echo "=== build.gradle after patch ===" && cat build.gradle
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
@@ -60,9 +61,9 @@ jobs:
           ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
 
 
+      
       - name: Sign APK (debug keystore)
         run: |
-          # Generate a throwaway debug keystore if it doesn't exist
           if [ ! -f ~/.android/debug.keystore ]; then
             mkdir -p ~/.android
             keytool -genkeypair -v \
@@ -75,7 +76,6 @@ jobs:
               -validity 10000 \
               -dname "CN=Android Debug,O=Android,C=US"
           fi
-          # Find the unsigned APK
           APK=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
           echo "Signing: $APK"
           $ANDROID_SDK_ROOT/build-tools/25.0.0/apksigner sign \
@@ -87,7 +87,7 @@ jobs:
             "$APK"
 
 
-
+      
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
