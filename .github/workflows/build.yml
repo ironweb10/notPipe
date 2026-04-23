@@ -1,0 +1,117 @@
+name: Build APK
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build release APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 8
+        uses: actions/setup-java@v4
+        with:
+          java-version: '8'
+          distribution: 'temurin'
+
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install SDK platform & build-tools
+        run: |
+          yes | sdkmanager \
+            "platforms;android-25" \
+            "build-tools;25.0.0" \
+            --sdk_root=$ANDROID_SDK_ROOT 2>/dev/null || true
+
+
+      - name: Patch repositories (JCenter → Maven Central + Google)
+        run: |
+          sed -i 's/jcenter()/mavenCentral()\n        google()/g' build.gradle
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Build release APK
+        run: ./gradlew assembleRelease --no-daemon --stacktrace
+        env:
+          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
+
+
+      - name: Sign APK (debug keystore)
+        run: |
+          # Generate a throwaway debug keystore if it doesn't exist
+          if [ ! -f ~/.android/debug.keystore ]; then
+            mkdir -p ~/.android
+            keytool -genkeypair -v \
+              -keystore ~/.android/debug.keystore \
+              -alias androiddebugkey \
+              -keypass android \
+              -storepass android \
+              -keyalg RSA \
+              -keysize 2048 \
+              -validity 10000 \
+              -dname "CN=Android Debug,O=Android,C=US"
+          fi
+          # Find the unsigned APK
+          APK=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
+          echo "Signing: $APK"
+          $ANDROID_SDK_ROOT/build-tools/25.0.0/apksigner sign \
+            --ks ~/.android/debug.keystore \
+            --ks-key-alias androiddebugkey \
+            --ks-pass pass:android \
+            --key-pass pass:android \
+            --out app/build/outputs/apk/release/notPipe-signed.apk \
+            "$APK"
+
+
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: notPipe-release-apk
+          path: app/build/outputs/apk/release/notPipe-signed.apk
+          retention-days: 30
+
+      - name: Get version name
+        if: github.event_name == 'push'
+        id: version
+        run: |
+          VERSION=$(grep 'versionName' app/build.gradle | sed 's/.*"\(.*\)".*/\1/' | tr -d '[:space:]')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}-${{ github.run_number }}
+          name: notPipe v${{ steps.version.outputs.version }}
+          body: |
+            Automatic build from commit ${{ github.sha }}
+
+            **Target:** Android 1.5+ (API 3+)
+            **compileSdk:** 25
+          files: app/build/outputs/apk/release/notPipe-signed.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
