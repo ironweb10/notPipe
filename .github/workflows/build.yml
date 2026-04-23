@@ -16,7 +16,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-
       - name: Set up JDK 17 (for sdkmanager)
         uses: actions/setup-java@v4
         with:
@@ -29,17 +28,14 @@ jobs:
           yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
           "$SDKMANAGER" "platforms;android-25" "build-tools;25.0.0"
 
-
       - name: Set up JDK 8 (for Gradle build)
         uses: actions/setup-java@v4
         with:
           java-version: '8'
           distribution: 'temurin'
 
-
       - name: Patch build files (AGP 2.3.2 → 3.1.4, Gradle 3.3 → 4.6)
         run: |
-          # Root build.gradle: replace classpath and repositories
           cat > build.gradle << 'EOF'
           buildscript {
               repositories {
@@ -61,11 +57,12 @@ jobs:
           }
           EOF
 
-          # Gradle wrapper: bump to 4.6 (required by AGP 3.1.x)
           sed -i 's|distributionUrl=.*|distributionUrl=https\\://services.gradle.org/distributions/gradle-4.6-all.zip|' \
             gradle/wrapper/gradle-wrapper.properties
 
+
           echo "=== build.gradle ===" && cat build.gradle
+          echo "=== app/build.gradle ===" && cat app/build.gradle
           echo "=== gradle-wrapper.properties ===" && cat gradle/wrapper/gradle-wrapper.properties
 
       - name: Grant execute permission for gradlew
@@ -118,27 +115,3 @@ jobs:
           name: notPipe-release-apk
           path: app/build/outputs/apk/release/notPipe-signed.apk
           retention-days: 30
-
-      - name: Get version name
-        if: github.event_name == 'push'
-        id: version
-        run: |
-          VERSION=$(grep 'versionName' app/build.gradle | sed 's/.*"\(.*\)".*/\1/' | tr -d '[:space:]')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-      - name: Create GitHub Release
-        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v${{ steps.version.outputs.version }}-${{ github.run_number }}
-          name: notPipe v${{ steps.version.outputs.version }}
-          body: |
-            Automatic build from commit ${{ github.sha }}
-
-            **Target:** Android 1.5+ (API 3+)
-            **compileSdk:** 25
-          files: app/build/outputs/apk/release/notPipe-signed.apk
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
