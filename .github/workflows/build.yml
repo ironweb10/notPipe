@@ -29,16 +29,17 @@ jobs:
           yes | "$SDKMANAGER" --licenses > /dev/null 2>&1 || true
           "$SDKMANAGER" "platforms;android-25" "build-tools;25.0.0"
 
+
       - name: Set up JDK 8 (for Gradle / AGP 2.3.2)
         uses: actions/setup-java@v4
         with:
           java-version: '8'
           distribution: 'temurin'
 
-  
-      - name: Patch repositories (JCenter → Maven Central + Google)
+
+      - name: Patch repositories (JCenter → Maven Central + Google Maven)
         run: |
-          sed -i 's/jcenter()/mavenCentral()\n        google()/g' build.gradle
+          sed -i "s|jcenter()|mavenCentral()\n        maven { url 'https://maven.google.com' }|g" build.gradle
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
@@ -85,7 +86,8 @@ jobs:
             --out app/build/outputs/apk/release/notPipe-signed.apk \
             "$APK"
 
-    
+
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
