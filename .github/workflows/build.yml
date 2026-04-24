@@ -34,36 +34,9 @@ jobs:
           java-version: '8'
           distribution: 'temurin'
 
-      - name: Patch build files (AGP 2.3.2 → 3.1.4, Gradle 3.3 → 4.6)
-        run: |
-          cat > build.gradle << 'EOF'
-          buildscript {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-              dependencies {
-                  classpath 'com.android.tools.build:gradle:3.1.4'
-              }
-          }
-          allprojects {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
-          task clean(type: Delete) {
-              delete rootProject.buildDir
-          }
-          EOF
-
-          sed -i 's|distributionUrl=.*|distributionUrl=https\\://services.gradle.org/distributions/gradle-4.6-all.zip|' \
-            gradle/wrapper/gradle-wrapper.properties
 
 
-          echo "=== build.gradle ===" && cat build.gradle
-          echo "=== app/build.gradle ===" && cat app/build.gradle
-          echo "=== gradle-wrapper.properties ===" && cat gradle/wrapper/gradle-wrapper.properties
+
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
